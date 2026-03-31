@@ -149,4 +149,4 @@ All data is stored locally on-device using Hive. No account, no cloud sync.
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 Shaswata Das
