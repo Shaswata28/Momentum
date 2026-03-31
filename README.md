@@ -1,5 +1,9 @@
 # Momentum
 
+<p align="center">
+  <img src="assets/images/app_icon.png" width="96" alt="Momentum app icon" />
+</p>
+
 > A personal daily routine, habit, and finance tracker for Android — built with Flutter.
 
 Momentum helps you structure your day through scheduled task blocks, track your finances month by month, and reflect on your performance with end-of-day logging and weekly analytics.
