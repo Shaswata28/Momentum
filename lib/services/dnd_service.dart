@@ -17,6 +17,11 @@ class DndService {
   }
 
   Future<void> init() async {
+    // Only check DND permission if user has already completed onboarding.
+    // During onboarding this is called explicitly from the permissions page.
+  }
+
+  Future<void> requestDndPermissionIfNeeded() async {
     bool? isGranted = await FlutterDnd.isNotificationPolicyAccessGranted;
     if (isGranted != null && !isGranted) {
       FlutterDnd.gotoPolicySettings();

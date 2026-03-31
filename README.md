@@ -1,7 +1,7 @@
 # Momentum
 
 <p align="center">
-  <img src="assets/images/app_icon.png" width="96" alt="Momentum app icon" />
+  <img src="assets/images/app_icon_transparent.png" width="96" alt="Momentum app icon" />
 </p>
 
 > A personal daily routine, habit, and finance tracker for Android — built with Flutter.

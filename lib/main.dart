@@ -64,7 +64,6 @@ void main() async {
 
   final ns = NotificationService();
   await ns.init();
-  await ns.requestPermissions();
   await ns.scheduleEODPrompt();
 
   final dnd = DndService();
