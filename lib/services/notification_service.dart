@@ -16,7 +16,7 @@ void notificationTapBackground(
   final actionId = notificationResponse.actionId;
 
   if (taskId != null && actionId != null) {
-    if (actionId == 'mark_done' || actionId == 'skip') {
+    if (actionId == 'mark_done' || actionId == 'skip' || actionId == 'start_now') {
       await initHive();
       final repo = DailyTaskInstanceRepository();
       final tasks = repo.getTasksForDate(DateTime.now());
@@ -35,8 +35,8 @@ void notificationTapBackground(
           durationMinutes: task.durationMinutes,
           status: actionId == 'mark_done'
               ? TaskStatus.done
-              : TaskStatus.skipped,
-          completedAt: DateTime.now(),
+              : (actionId == 'skip' ? TaskStatus.skipped : TaskStatus.inProgress),
+          completedAt: actionId == 'mark_done' || actionId == 'skip' ? DateTime.now() : task.completedAt,
           rescheduledToDate: task.rescheduledToDate,
           isBufferBlock: task.isBufferBlock,
           enableDND: task.enableDND,
@@ -118,6 +118,7 @@ class NotificationService {
           importance: Importance.max,
           priority: Priority.high,
           actions: <AndroidNotificationAction>[
+            AndroidNotificationAction('start_now', 'Start Now'),
             AndroidNotificationAction('mark_done', 'Mark Done'),
             AndroidNotificationAction('skip', 'Skip'),
           ],

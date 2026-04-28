@@ -10,6 +10,7 @@ import '../models/month_summary.dart';
 import '../models/wallet_settings.dart';
 import '../models/user_settings.dart';
 import '../models/simple_goal.dart';
+import '../models/fixed_expense.dart';
 
 /// Initializes Hive, registers all type adapters uniquely,
 /// and opens all required boxes for the app to function offline.
@@ -35,6 +36,7 @@ Future<void> initHive() async {
     Hive.registerAdapter(WalletSettingsAdapter());
     Hive.registerAdapter(UserSettingsAdapter());
     Hive.registerAdapter(SimpleGoalAdapter());
+    Hive.registerAdapter(FixedExpenseAdapter());
   }
 
   // Open boxes
@@ -48,6 +50,7 @@ Future<void> initHive() async {
     Hive.openBox<WalletSettings>('walletSettings'),
     Hive.openBox<UserSettings>('userSettings'),
     Hive.openBox<SimpleGoal>('simple_goals'),
+    Hive.openBox<FixedExpense>('fixedExpenses'),
   ]);
 
   // Bootstrap default active period if none exists

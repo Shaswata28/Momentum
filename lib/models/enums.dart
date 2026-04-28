@@ -24,4 +24,6 @@ enum TaskStatus {
   rescheduled,
   @HiveField(4)
   missed,
+  @HiveField(5)
+  inProgress,
 }

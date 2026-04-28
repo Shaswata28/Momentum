@@ -235,6 +235,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsB
                         key: ValueKey(task.id),
                         task: task,
                         onMarkDone: () => ref.read(todayTasksProvider.notifier).markTaskDone(task.id),
+                        onStart: () => ref.read(todayTasksProvider.notifier).startTask(task.id),
                         onSkip: () => ref.read(todayTasksProvider.notifier).markTaskSkipped(task.id),
                         onReschedule: (date) => ref.read(todayTasksProvider.notifier).rescheduleTask(task.id, date),
                         onDismissBuffer: () => ref.read(todayTasksProvider.notifier).dismissBuffer(task.id),

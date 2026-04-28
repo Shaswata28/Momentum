@@ -1,10 +1,12 @@
 import 'package:hive/hive.dart';
 import '../models/transaction.dart';
 import '../models/month_summary.dart';
+import '../models/fixed_expense.dart';
 
 class WalletRepository {
   Box<Transaction> get _txBox => Hive.box<Transaction>('transactions');
   Box<MonthSummary> get _monthBox => Hive.box<MonthSummary>('monthSummaries');
+  Box<FixedExpense> get _fixedExpenseBox => Hive.box<FixedExpense>('fixedExpenses');
 
   // Transactions CRUD
   List<Transaction> getAllTransactions() => _txBox.values.toList();
@@ -25,6 +27,17 @@ class WalletRepository {
 
   Future<void> saveMonthSummary(MonthSummary summary) async {
     await _monthBox.put(summary.id, summary);
+  }
+
+  // FixedExpense CRUD
+  List<FixedExpense> getAllFixedExpenses() => _fixedExpenseBox.values.toList();
+
+  Future<void> saveFixedExpense(FixedExpense expense) async {
+    await _fixedExpenseBox.put(expense.id, expense);
+  }
+
+  Future<void> deleteFixedExpense(String id) async {
+    await _fixedExpenseBox.delete(id);
   }
 
   // Balance computation

@@ -11,6 +11,7 @@ import 'widgets/budget_bar.dart';
 import 'widgets/savings_goal_card.dart';
 import 'transaction_sheet.dart';
 import '../../widgets/action_button.dart';
+import 'widgets/fixed_bills_section.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
@@ -48,6 +49,23 @@ class WalletScreen extends ConsumerWidget {
          title: Text('Wallet', style: AppTypography.displayHeading), 
          backgroundColor: AppColors.appBackground,
          elevation: 0,
+         bottom: PreferredSize(
+           preferredSize: const Size.fromHeight(22),
+           child: Padding(
+             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+             child: Align(
+               alignment: Alignment.centerLeft,
+               child: Text(
+                 () {
+                   const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+                   final now = DateTime.now();
+                   return '${months[now.month - 1]} ${now.year}';
+                 }(),
+                 style: AppTypography.sectionLabel.copyWith(color: AppColors.accentPrimary),
+               ),
+             ),
+           ),
+         ),
       ),
       body: CustomScrollView(
         slivers: [
@@ -100,6 +118,10 @@ class WalletScreen extends ConsumerWidget {
                   BudgetBar(spent: spent, limit: settings.monthlyBudget),
                   SavingsGoalCard(saved: saved, goal: settings.semesterGoal),
                   
+                  const SizedBox(height: 32),
+                  const FixedBillsSection(),
+                  const SizedBox(height: 32),
+
                   Text('TRANSACTIONS', style: AppTypography.sectionLabel),
                   const SizedBox(height: 16),
                 ]

@@ -67,6 +67,8 @@ class TaskStatusAdapter extends TypeAdapter<TaskStatus> {
         return TaskStatus.rescheduled;
       case 4:
         return TaskStatus.missed;
+      case 5:
+        return TaskStatus.inProgress;
       default:
         return TaskStatus.pending;
     }
@@ -89,6 +91,9 @@ class TaskStatusAdapter extends TypeAdapter<TaskStatus> {
         break;
       case TaskStatus.missed:
         writer.writeByte(4);
+        break;
+      case TaskStatus.inProgress:
+        writer.writeByte(5);
         break;
     }
   }

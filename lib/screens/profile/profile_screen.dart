@@ -260,35 +260,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 36),
             const _SectionHeader('ROUTINE & SCHEDULE'),
             const SizedBox(height: 12),
-            _buildCard(
-              child: _SettingsRow(
-                icon: Icons.edit_calendar_outlined,
-                label: 'Edit Routine',
-                onTap: _openEditRoutine,
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF121217),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1A1A24)),
+              ),
+              child: Column(
+                children: [
+                  _SettingsRow(
+                    icon: Icons.edit_calendar_outlined,
+                    label: 'Edit Routine',
+                    onTap: _openEditRoutine,
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 32),
             const _SectionHeader('APP SETTINGS'),
             const SizedBox(height: 12),
-            _buildCard(
-              child: _SettingsRow(
-                icon: Icons.notifications_outlined,
-                label: 'EOD Reminder Time',
-                subtitle: _formatEodTime(),
-                onTap: _openNotificationsModal,
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF121217),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1A1A24)),
+              ),
+              child: Column(
+                children: [
+                  _SettingsRow(
+                    icon: Icons.notifications_outlined,
+                    label: 'EOD Reminder Time',
+                    subtitle: _formatEodTime(),
+                    onTap: _openNotificationsModal,
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 32),
             const _SectionHeader('DATA MANAGEMENT'),
             const SizedBox(height: 12),
-            _buildCard(
-              child: _SettingsRow(
-                icon: Icons.delete_outline,
-                label: 'Wipe App Data',
-                color: AppColors.errorAlert,
-                onTap: _wipeData,
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF121217),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1A1A24)),
+              ),
+              child: Column(
+                children: [
+                  _SettingsRow(
+                    icon: Icons.delete_outline,
+                    label: 'Wipe App Data',
+                    color: AppColors.errorAlert,
+                    onTap: _wipeData,
+                  ),
+                ],
               ),
             ),
 
@@ -385,18 +412,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCard({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121217),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1A1A24)),
-      ),
-      child: child,
     );
   }
 }
@@ -592,7 +607,7 @@ class _SettingsRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Row(
           children: [
             Icon(icon, color: fg, size: 20),

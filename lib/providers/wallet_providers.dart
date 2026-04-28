@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../repositories/wallet_repository.dart';
 import '../models/transaction.dart';
 import '../models/month_summary.dart';
+import '../models/fixed_expense.dart';
 
 final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '৳', decimalDigits: 2);
 
@@ -25,6 +26,15 @@ final currentTransactionsProvider = Provider<List<Transaction>>((ref) {
   final txs = repo.getTransactionsForMonth(monthId);
   txs.sort((a, b) => b.date.compareTo(a.date));
   return txs;
+});
+
+final fixedExpensesProvider = Provider<List<FixedExpense>>((ref) {
+  final repo = ref.watch(walletRepositoryProvider);
+  // Force dependency on transactions so this recomputes on every add/delete (for UI updates)
+  ref.watch(currentTransactionsProvider);
+  final expenses = repo.getAllFixedExpenses();
+  expenses.sort((a, b) => a.billingDay.compareTo(b.billingDay));
+  return expenses;
 });
 
 final runningBalanceProvider = Provider<double>((ref) {
@@ -58,6 +68,16 @@ class WalletNotifier extends StateNotifier<void> {
     ref.invalidate(currentTransactionsProvider);
     ref.invalidate(runningBalanceProvider);
     ref.invalidate(currentMonthSummaryProvider);
+  }
+
+  Future<void> addFixedExpense(FixedExpense expense) async {
+    await repo.saveFixedExpense(expense);
+    ref.invalidate(fixedExpensesProvider);
+  }
+
+  Future<void> deleteFixedExpense(String id) async {
+    await repo.deleteFixedExpense(id);
+    ref.invalidate(fixedExpensesProvider);
   }
 }
 

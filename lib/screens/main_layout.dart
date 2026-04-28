@@ -6,6 +6,7 @@ import '../theme/app_typography.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'wallet/wallet_screen.dart';
 import 'insights/insights_screen.dart';
+import '../repositories/eod_log_repository.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({super.key});
@@ -55,11 +56,20 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final repo = EODLogRepository();
+    final hasTodayLog = repo.getAllLogs().any((l) =>
+        l.date.year == now.year &&
+        l.date.month == now.month &&
+        l.date.day == now.day);
+    final showEodBadge = !hasTodayLog && now.hour >= 21;
+
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: _MomentumNavBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
+        showEodBadge: showEodBadge,
       ),
     );
   }
@@ -70,8 +80,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 class _MomentumNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final bool showEodBadge;
 
-  const _MomentumNavBar({required this.currentIndex, required this.onTap});
+  const _MomentumNavBar({required this.currentIndex, required this.onTap, required this.showEodBadge});
 
   static const _items = [
     (icon: Icons.dashboard_outlined,          activeIcon: Icons.dashboard,                   label: 'Today'),
@@ -113,10 +124,28 @@ class _MomentumNavBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  Icon(
-                    active ? item.activeIcon : item.icon,
-                    color: active ? AppColors.accentPrimary : const Color(0xFF3A3A50),
-                    size: 22,
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        active ? item.activeIcon : item.icon,
+                        color: active ? AppColors.accentPrimary : const Color(0xFF3A3A50),
+                        size: 22,
+                      ),
+                      if (i == 2 && showEodBadge)
+                        Positioned(
+                          top: -2,
+                          right: -4,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.warningTag,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(

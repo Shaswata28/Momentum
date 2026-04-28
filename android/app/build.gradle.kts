@@ -43,9 +43,12 @@ android {
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                val appName = "Momentum"
                 val versionName = variant.versionName
-                output.outputFileName = "${appName}-v${versionName}-${variant.buildType.name}.apk"
+                output.outputFileName = if (variant.buildType.name == "release") {
+                    "Momentum.apk"
+                } else {
+                    "Momentum-v${versionName}-${variant.buildType.name}.apk"
+                }
             }
     }
 }

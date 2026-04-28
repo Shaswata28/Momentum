@@ -157,6 +157,37 @@ class TodayTasksNotifier extends StateNotifier<List<DailyTaskInstance>> {
     _syncWidgetAndDnd(newState);
   }
 
+  void startTask(String id) async {
+    final taskIndex = state.indexWhere((t) => t.id == id);
+    if (taskIndex != -1) {
+      final oldTask = state[taskIndex];
+      final newTask = DailyTaskInstance(
+        id: oldTask.id,
+        routineTaskId: oldTask.routineTaskId,
+        date: oldTask.date,
+        title: oldTask.title,
+        taskType: oldTask.taskType,
+        scheduledTime: oldTask.scheduledTime,
+        flexWindowStart: oldTask.flexWindowStart,
+        flexWindowEnd: oldTask.flexWindowEnd,
+        durationMinutes: oldTask.durationMinutes,
+        status: TaskStatus.inProgress,
+        completedAt: oldTask.completedAt,
+        rescheduledToDate: oldTask.rescheduledToDate,
+        isBufferBlock: oldTask.isBufferBlock,
+        enableDND: oldTask.enableDND,
+        notificationId: oldTask.notificationId,
+      );
+
+      await repo.save(newTask);
+
+      final newState = [...state];
+      newState[taskIndex] = newTask;
+      state = newState;
+      _syncWidgetAndDnd(newState);
+    }
+  }
+
   void markTaskDone(String id) async {
     final taskIndex = state.indexWhere((t) => t.id == id);
     if (taskIndex != -1) {

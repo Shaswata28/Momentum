@@ -21,7 +21,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
   final _noteCtrl = TextEditingController();
   final DateTime _selectedDate = DateTime.now();
   
-  ExpenseType? _expType = ExpenseType.fixed;
+  ExpenseType? _expType = ExpenseType.variable;
   IncomeSource? _incSrc = IncomeSource.other;
   final bool _isSettled = false;
 
@@ -132,7 +132,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
                            labelStyle: AppTypography.bodyText.copyWith(color: _incSrc == s ? AppColors.accentPrimary : AppColors.textMuted),
                            showCheckmark: false,
                         )).toList()
-                      : ExpenseType.values.map((s) => ChoiceChip(
+                      : ExpenseType.values.where((s) => s != ExpenseType.fixed).map((s) => ChoiceChip(
                            label: Text(s.name),
                            selected: _expType == s,
                            onSelected: (val) => setState(()=> _expType = val ? s : _expType),
