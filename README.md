@@ -28,9 +28,7 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 
 ## 📸 Screenshots
 
-<!-- Add screenshots here once you've captured them -->
-<!-- Suggested layout: 4–5 screenshots in a single row using HTML table -->
-<!--
+
 <p align="center">
   <img src="screenshots/Dashboard.png" width="19%" />
   <img src="screenshots/Wallet.png" width="19%" />
@@ -39,7 +37,7 @@ Momentum helps you structure your day through scheduled task blocks, track your 
   <img src="screenshots/Routine Builder2.png" width="19%" />
   <img src="screenshots/Insight2.png" width="19%" />
 </p>
--->
+
 
 ---
 
