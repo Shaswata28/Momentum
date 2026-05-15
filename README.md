@@ -35,7 +35,6 @@ Momentum helps you structure your day through scheduled task blocks, track your 
   <img src="screenshots/Wallet2.png" width="19%" />
   <img src="screenshots/Routine Builder.png" width="19%" />
   <img src="screenshots/Routine Builder2.png" width="19%" />
-  <img src="screenshots/Insight2.png" width="19%" />
 </p>
 
 
