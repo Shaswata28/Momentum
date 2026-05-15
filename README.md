@@ -90,7 +90,7 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 > **The app is not yet on the Play Store.** You can download the latest APK directly from GitHub Releases.
 
 1. Go to the [**Releases**](../../releases) page.
-2. Download the latest `momentum-release.apk`.
+2. Download the latest `Momentum.apk`.
 3. On your Android device, allow installation from unknown sources if prompted (**Settings → Apps → Special app access → Install unknown apps**).
 4. Open the downloaded APK and install.
 
