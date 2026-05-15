@@ -1,0 +1,60 @@
+name: momentum
+description: "Momentum — personal daily routine, habit, and finance tracker for Android."
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.4.0
+
+  # Local storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Notifications & timezone
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.4
+  flutter_timezone: ^5.0.2
+
+  # Home screen widget
+  home_widget: ^0.9.0
+
+  # Do Not Disturb (local package)
+  flutter_dnd:
+    path: ./packages/flutter_dnd
+
+  # Charts
+  fl_chart: ^1.2.0
+
+  # Fonts
+  google_fonts: ^6.0.0
+
+  # Coach marks / feature tour
+  showcaseview: ^3.0.0
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.0.0
+  cupertino_icons: ^1.0.8
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.0
+  hive_generator: ^2.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/Momentum_appIcon_Foreground.png
+
+  # To add assets to your application, add an assets section, like this:

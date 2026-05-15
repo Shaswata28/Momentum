@@ -1,0 +1,119 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="#0D0D0F"
+    android:padding="16dp">
+
+    <!-- Left Half: Current Task (Card Surface) -->
+    <LinearLayout
+        android:id="@+id/layout_active_task"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:background="#121217"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_headline_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CURRENT"
+            android:textColor="#888898"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tv_headline_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No Active Tasks"
+            android:textColor="#F0F0F5"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="12dp"/>
+
+        <ProgressBar
+            android:id="@+id/progress_current"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/widget_progress"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="#1A1A24"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"/>
+
+    <!-- Right Half: Next Task -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:background="#121217"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_next_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NEXT"
+            android:textColor="#888898"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tv_next_task_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No upcoming task"
+            android:textColor="#888898"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:id="@+id/tv_next_task_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="--:--"
+            android:textColor="#888898"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:layout_marginTop="2dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"/>
+
+        <TextView
+            android:id="@+id/tv_total_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 / 0 done"
+            android:textColor="#F0F0F5"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:layout_gravity="end"/>
+    </LinearLayout>
+</LinearLayout>
