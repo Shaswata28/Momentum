@@ -110,9 +110,10 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
     final keyboardSpace = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F0F14),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + keyboardSpace),
       child: SingleChildScrollView(
@@ -123,73 +124,74 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
             // Drag handle
             Center(
               child: Container(
-                width: 40,
+                width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A38),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
-            Text('Wallet Settings',
-                style: AppTypography.displayHeading.copyWith(fontSize: 20)),
-            const SizedBox(height: 6),
-            Text(
-              'Configure your balance, budget, and savings target.',
-              style: AppTypography.bodyText
-                  .copyWith(color: AppColors.textSecondary, fontSize: 13),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentPrimary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    color: AppColors.accentPrimary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Wallet Settings', style: AppTypography.headline),
+                    Text(
+                      'Budget, opening balance & goals',
+                      style: AppTypography.bodyText.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // ── Opening Balance ─────────────────────────────────────────────
-            Text('Opening Balance',
-                style: AppTypography.bodyText.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                )),
-            const SizedBox(height: 6),
             _Field(
+              title: 'Opening Balance',
               controller: _openingCtrl,
               hint: '0.00',
-              helper:
-                  'Your starting balance at the beginning of this month (e.g. cash carried forward).',
+              helper: 'Your cash/bank balance at the start of this month.',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // ── Monthly Budget Limit ──────────────────────────────────────────
-            Text('Monthly Budget Limit',
-                style: AppTypography.bodyText.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                )),
-            const SizedBox(height: 6),
             _Field(
+              title: 'Monthly Budget Limit',
               controller: _budgetCtrl,
               hint: '0.00',
-              helper:
-                  'The budget bar will warn you as you approach this spend limit.',
+              helper: 'Warns you as you approach this spending threshold.',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // ── Savings Goal ─────────────────────────────────────────────────
-            Text('Savings Goal',
-                style: AppTypography.bodyText.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                )),
-            const SizedBox(height: 6),
             _Field(
+              title: 'Savings Target',
               controller: _goalCtrl,
               hint: '0.00',
-              helper:
-                  'A savings target to track progress toward (e.g. semester fund, emergency fund).',
+              helper: 'Semester fund or long-term savings milestone.',
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
             // ── Save button ─────────────────────────────────────────────────
             SizedBox(
@@ -198,7 +200,8 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -206,8 +209,10 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
                 ),
                 child: Text(
                   'Save Settings',
-                  style:
-                      AppTypography.buttonLabel.copyWith(color: Colors.white),
+                  style: AppTypography.buttonLabel.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -220,11 +225,13 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
 
 // ── Reusable currency input field ─────────────────────────────────────────────
 class _Field extends StatelessWidget {
+  final String title;
   final TextEditingController controller;
   final String hint;
   final String helper;
 
   const _Field({
+    required this.title,
     required this.controller,
     required this.hint,
     required this.helper,
@@ -235,41 +242,47 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          title.toUpperCase(),
+          style: AppTypography.sectionLabel,
+        ),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF161619),        // slightly lighter bg
+            color: AppColors.appBackground,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF252535)), // brighter border
+            border: Border.all(color: AppColors.subtleBorder),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           child: TextField(
             controller: controller,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            style: AppTypography.bodyText
-                .copyWith(color: AppColors.textPrimary, fontSize: 16),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: AppTypography.scoreStat.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            cursorColor: AppColors.accentPrimary,
             decoration: InputDecoration(
               border: InputBorder.none,
               hintText: hint,
-              hintStyle: AppTypography.bodyText.copyWith(
-                color: AppColors.textSecondary, // was textMuted
-                fontSize: 16,
+              hintStyle: AppTypography.scoreStat.copyWith(
+                color: AppColors.textPlaceholder,
+                fontSize: 15,
               ),
               prefixText: '৳ ',
-              prefixStyle: AppTypography.bodyText.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 16,
+              prefixStyle: AppTypography.scoreStat.copyWith(
+                color: AppColors.accentPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Text(
           helper,
-          style: AppTypography.bodyText.copyWith( // was sectionLabel (JetBrains Mono)
-            color: AppColors.textSecondary,        // was textMuted
-            fontSize: 12,
-          ),
+          style: AppTypography.caption,
         ),
       ],
     );

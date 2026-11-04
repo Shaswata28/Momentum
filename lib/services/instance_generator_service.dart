@@ -42,7 +42,9 @@ class InstanceGeneratorService {
       for (var instance in staleInstances) {
         // Skip already-completed/missed/skipped — don't overwrite user actions
         if (instance.status != TaskStatus.pending &&
-            instance.status != TaskStatus.inProgress) continue;
+            instance.status != TaskStatus.inProgress) {
+          continue;
+        }
 
         final needsUpdate = instance.title != task.title ||
             instance.scheduledTime != task.scheduledTime ||

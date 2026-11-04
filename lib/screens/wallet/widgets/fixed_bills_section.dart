@@ -36,7 +36,7 @@ class FixedBillsSection extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.25)),
                 ),
-                child: const Icon(Icons.add, color: AppColors.accentPrimary, size: 16),
+                child: Icon(Icons.add, color: AppColors.accentPrimary, size: 16),
               ),
             ),
           ],
@@ -49,8 +49,8 @@ class FixedBillsSection extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 28),
             decoration: BoxDecoration(
               color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF1A1A24)),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Column(
               children: [
@@ -66,8 +66,8 @@ class FixedBillsSection extends ConsumerWidget {
           Container(
             decoration: BoxDecoration(
               color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF1A1A24)),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Column(
               children: fixedExpenses.asMap().entries.map((entry) {
@@ -76,7 +76,7 @@ class FixedBillsSection extends ConsumerWidget {
                   expense: entry.value,
                   monthId: monthId,
                   isLast: isLast,
-                  onMarkPaid: () => _markPaid(ref, entry.value, monthId),
+                  onMarkPaid: () => _markPaid(context, ref, entry.value, monthId),
                   onDelete: () => ref.read(walletNotifierProvider.notifier).deleteFixedExpense(entry.value.id),
                 );
               }).toList(),
@@ -86,14 +86,14 @@ class FixedBillsSection extends ConsumerWidget {
     );
   }
 
-  void _markPaid(WidgetRef ref, FixedExpense expense, String currentMonthId) async {
+  void _markPaid(BuildContext context, WidgetRef ref, FixedExpense expense, String currentMonthId) async {
     HapticFeedback.mediumImpact();
     final tx = Transaction(
       id: const Uuid().v4(),
       date: DateTime.now(),
       direction: Direction.expense,
       amount: expense.amount,
-      expenseType: ExpenseType.other,
+      expenseType: ExpenseType.fixed,
       note: expense.name,
       isSettled: true,
       monthId: currentMonthId,
@@ -108,6 +108,24 @@ class FixedBillsSection extends ConsumerWidget {
       lastPaidMonthKey: currentMonthId,
     );
     await ref.read(walletNotifierProvider.notifier).addFixedExpense(updated);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text('Paid ${expense.name} (৳${expense.amount.toInt()})'),
+            ],
+          ),
+          backgroundColor: AppColors.successDone,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(milliseconds: 2000),
+        ),
+      );
+    }
   }
 
   void _showAddSheet(BuildContext context, WidgetRef ref) {
@@ -122,7 +140,7 @@ class FixedBillsSection extends ConsumerWidget {
 
 // ── Individual bill row ───────────────────────────────────────────────────────
 
-class _BillRow extends StatelessWidget {
+class _BillRow extends StatefulWidget {
   final FixedExpense expense;
   final String monthId;
   final bool isLast;
@@ -138,8 +156,24 @@ class _BillRow extends StatelessWidget {
   });
 
   @override
+  State<_BillRow> createState() => _BillRowState();
+}
+
+class _BillRowState extends State<_BillRow> {
+  bool _isProcessing = false;
+
+  void _handlePay() {
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    Future.delayed(const Duration(milliseconds: 220), () {
+      if (mounted) setState(() => _isProcessing = false);
+      widget.onMarkPaid();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isPaid = expense.lastPaidMonthKey == monthId;
+    final isPaid = widget.expense.lastPaidMonthKey == widget.monthId;
 
     return GestureDetector(
       onLongPress: () {
@@ -149,21 +183,22 @@ class _BillRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          border: isLast
+          border: widget.isLast
               ? null
-              : const Border(bottom: BorderSide(color: Color(0xFF141418))),
+              : Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Dot indicator
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               width: 8,
               height: 8,
               margin: const EdgeInsets.only(right: 14),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isPaid ? AppColors.successDone : AppColors.warningTag,
+                color: (isPaid || _isProcessing) ? AppColors.successDone : AppColors.warningTag,
               ),
             ),
             // Name + due date
@@ -172,19 +207,23 @@ class _BillRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    expense.name,
+                    widget.expense.name,
                     style: AppTypography.bodyText.copyWith(
                       color: isPaid ? AppColors.textMuted : AppColors.textPrimary,
                       decoration: isPaid ? TextDecoration.lineThrough : null,
                       decorationColor: AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Due ${_ordinal(expense.billingDay)} each month',
-                    style: AppTypography.sectionLabel,
+                    'Due ${_ordinal(widget.expense.billingDay)} each month',
+                    style: AppTypography.sectionLabel.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -195,7 +234,7 @@ class _BillRow extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    currencyFormat.format(expense.amount),
+                    currencyFormat.format(widget.expense.amount),
                     style: AppTypography.scoreStat.copyWith(
                       color: AppColors.textMuted,
                       decoration: TextDecoration.lineThrough,
@@ -203,32 +242,55 @@ class _BillRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.check_circle, color: AppColors.successDone, size: 20),
+                  Icon(Icons.check_circle_rounded, color: AppColors.successDone, size: 20),
                 ],
               )
             else
               Row(
                 children: [
                   Text(
-                    currencyFormat.format(expense.amount),
-                    style: AppTypography.scoreStat.copyWith(color: AppColors.textPrimary),
+                    currencyFormat.format(widget.expense.amount),
+                    style: AppTypography.scoreStat.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   GestureDetector(
-                    onTap: onMarkPaid,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentPrimary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        'Pay',
-                        style: AppTypography.navLabel.copyWith(
-                          color: AppColors.accentPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    onTap: _isProcessing ? null : _handlePay,
+                    child: AnimatedScale(
+                      scale: _isProcessing ? 0.92 : 1.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isProcessing
+                              ? AppColors.successDone
+                              : AppColors.accentPrimary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _isProcessing
+                                ? AppColors.successDone
+                                : AppColors.accentPrimary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isProcessing) ...[
+                              const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              _isProcessing ? 'Paid' : 'Pay',
+                              style: AppTypography.buttonLabel.copyWith(
+                                color: _isProcessing ? Colors.white : AppColors.accentPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -247,12 +309,12 @@ class _BillRow extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFF1A1A24)),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
-        title: Text('Remove Bill?', style: AppTypography.displayHeading.copyWith(fontSize: 18)),
+        title: Text('Remove Bill?', style: AppTypography.headline),
         content: Text(
-          'Remove "${expense.name}" from recurring bills?',
+          'Remove "${widget.expense.name}" from recurring bills?',
           style: AppTypography.bodyText,
         ),
         actions: [
@@ -263,7 +325,7 @@ class _BillRow extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              onDelete();
+              widget.onDelete();
             },
             child: Text('Remove', style: AppTypography.buttonLabel.copyWith(color: AppColors.errorAlert)),
           ),
@@ -327,11 +389,12 @@ class _AddBillSheetState extends State<_AddBillSheet> {
     final keyboardSpace = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.appBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + keyboardSpace),
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + keyboardSpace),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -340,82 +403,94 @@ class _AddBillSheetState extends State<_AddBillSheet> {
             // ── Drag handle ──────────────────────────────────────────
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 38, height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A38),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            Text('New Recurring Bill', style: AppTypography.displayHeading),
-            const SizedBox(height: 28),
+            Text('New Recurring Bill', style: AppTypography.titleLarge),
+            const SizedBox(height: 20),
 
             // Name
+            Text('BILL NAME', style: AppTypography.sectionLabel),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF121217),
+                color: AppColors.appBackground,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.subtleBorder),
               ),
               child: TextField(
                 controller: _nameCtrl,
-                style: AppTypography.bodyText,
+                style: AppTypography.bodyText.copyWith(color: AppColors.textPrimary),
+                cursorColor: AppColors.accentPrimary,
                 decoration: InputDecoration(
-                  hintText: 'Bill name (e.g. Internet, Rent)',
-                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textMuted),
+                  hintText: 'e.g. Internet, Rent, Spotify',
+                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder),
                   border: InputBorder.none,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Amount
+            Text('AMOUNT', style: AppTypography.sectionLabel),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF121217),
+                color: AppColors.appBackground,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.subtleBorder),
               ),
               child: TextField(
                 controller: _amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: AppTypography.bodyText,
+                style: AppTypography.scoreStat.copyWith(color: AppColors.textPrimary, fontSize: 16),
+                cursorColor: AppColors.accentPrimary,
                 decoration: InputDecoration(
-                  hintText: 'Amount',
-                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textMuted),
+                  hintText: '0.00',
+                  hintStyle: AppTypography.scoreStat.copyWith(color: AppColors.textPlaceholder),
                   prefixText: '৳ ',
-                  prefixStyle: AppTypography.bodyText.copyWith(color: AppColors.textSecondary),
+                  prefixStyle: AppTypography.scoreStat.copyWith(color: AppColors.accentPrimary),
                   border: InputBorder.none,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-            // Billing day
+            // Billing Day
+            Text('DUE DAY OF MONTH', style: AppTypography.sectionLabel),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF121217),
+                color: AppColors.appBackground,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.subtleBorder),
               ),
               child: TextField(
                 controller: _dayCtrl,
                 keyboardType: TextInputType.number,
-                style: AppTypography.bodyText,
+                style: AppTypography.scoreStat.copyWith(color: AppColors.textPrimary, fontSize: 16),
+                cursorColor: AppColors.accentPrimary,
                 decoration: InputDecoration(
-                  hintText: 'Billing day of month (1 – 31)',
-                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textMuted),
+                  hintText: 'Day (1–31)',
+                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder),
                   border: InputBorder.none,
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             ActionButton(
-              icon: Icons.check,
-              label: 'SAVE BILL',
-              color: AppColors.accentPrimary,
+              icon: Icons.check_rounded,
+              label: 'Add Bill',
+              isPrimary: true,
               onTap: _save,
             ),
           ],

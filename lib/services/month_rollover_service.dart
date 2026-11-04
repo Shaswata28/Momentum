@@ -17,7 +17,7 @@ class MonthRolloverService {
           prevMonth = 12;
           prevYear -= 1;
        }
-       final prevMonthId = '${prevYear}-${prevMonth.toString().padLeft(2, '0')}';
+       final prevMonthId = '$prevYear-${prevMonth.toString().padLeft(2, '0')}';
        
        final prevSummary = _repo.getMonthSummary(prevMonthId);
        

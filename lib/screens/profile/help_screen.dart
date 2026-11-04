@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 
@@ -16,88 +17,127 @@ class HelpScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.appBackground,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+        surfaceTintColor: Colors.transparent,
+        leading: GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            Navigator.pop(context);
+          },
+          child: Container(
+            width: 36,
+            height: 36,
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary,
+              size: 16,
+            ),
+          ),
         ),
-        title: Text('Help & Guide', style: AppTypography.displayHeading),
+        title: Text(
+          'Help & Guide',
+          style: AppTypography.displayHeading.copyWith(fontSize: 22),
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-        children: const [
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+        children: [
           // Intro
-          _Intro(),
-          SizedBox(height: 28),
+          const _Intro(),
+          const SizedBox(height: 28),
 
           // ── Routine & Tasks ───────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.repeat_rounded,
             label: 'ROUTINE & TASKS',
-            color: Color(0xFF1A6FE8),
+            color: AppColors.accentPrimary,
           ),
-          SizedBox(height: 10),
-          _HelpCard(
+          const SizedBox(height: 12),
+          const _HelpCard(
             icon: Icons.construction_outlined,
             title: 'Building your daily routine',
             body:
-                'Head over to Profile > Edit Routine to build your perfect day! You can schedule tasks for the Morning, Afternoon, or Evening.\n\n'
-                'Don\'t forget to pick which days they happen—once you set it up, Momentum automatically generates your daily task list for you every single day.',
+                'Head over to Profile > Routine Builder to set up your weekly routine! You can schedule recurring tasks for specific days of the week.\n\n'
+                'Momentum automatically generates your daily task list for you every morning based on what day it is.',
           ),
-          _HelpCard(
+          const _HelpCard(
             icon: Icons.add_circle_outline,
             title: 'Adding a quick temporary task',
             body:
-                'Need to remember something just for today? Tap the "Add a task for today..." bar at the bottom of your Today screen.\n\n'
-                'It\'s perfect for one-off things like "Call mom" or "Pick up a package" that don\'t belong in your permanent daily routine.',
+                'Need to remember something just for today? Tap the "Add a task for today..." bar on your Today screen.\n\n'
+                'It\'s perfect for one-off tasks like "Call plumber" or "Pick up a parcel" that don\'t belong in your permanent weekly routine.',
           ),
 
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
 
           // ── Wallet ────────────────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.account_balance_wallet_outlined,
             label: 'WALLET & FINANCE',
-            color: Color(0xFF1D9E75),
+            color: AppColors.successDone,
           ),
-          SizedBox(height: 10),
-          _HelpCard(
+          const SizedBox(height: 12),
+          const _HelpCard(
             icon: Icons.tune_rounded,
             title: 'Setting up your Wallet',
             body:
-                'To get the most out of your Wallet, tap the ⚙️ gear icon at the top of the Wallet screen! '
-                'That\'s where you can set your starting balance, give yourself a Monthly Budget Limit (which powers the budget bar), '
-                'and set a Savings Goal so you can watch your savings progress fill up.',
+                'To configure your finances, tap the tune icon at the top of the Wallet screen. '
+                'Set your starting cash balance, define a Monthly Budget Limit to track against, '
+                'and set a Semester Savings Target to visualize your savings milestones.',
           ),
-          _HelpCard(
+          const _HelpCard(
             icon: Icons.receipt_long_outlined,
             title: 'Handling fixed bills',
             body:
-                'Got rent, internet, or a monthly Spotify sub? Add it to the Fixed Bills section.\n\n'
-                'Every month, a handy "Pay" button will appear next to each bill. Just tap it when you pay it, and Momentum will automatically log the expense and check it off your list for the month!',
+                'Got rent, subscriptions, or utility bills? Add them to the Fixed Bills section.\n\n'
+                'Each month, a single-tap "Pay" button lets you record payment instantly, checking it off your list and updating your ledger.',
           ),
 
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
+
+          // ── Focus & Shield ────────────────────────────────────────────────
+          _GroupHeader(
+            icon: Icons.shield_outlined,
+            label: 'FOCUS SHIELD',
+            color: AppColors.accentPrimary,
+          ),
+          const SizedBox(height: 12),
+          const _HelpCard(
+            icon: Icons.do_not_disturb_on_outlined,
+            title: 'How Focus Shield works',
+            body:
+                'Focus Shield automatically blocks distracting apps when you are inside an active DND task.\n\n'
+                'If you open a blocked app, a calming mindful friction screen encourages you to pause and return to deep work, with 3 emergency passes per day.',
+          ),
+
+          const SizedBox(height: 28),
 
           // ── Insights ──────────────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.insights_rounded,
             label: 'INSIGHTS & LOGS',
-            color: Color(0xFF9B6FE8),
+            color: AppColors.floatingTask,
           ),
-          SizedBox(height: 10),
-          _HelpCard(
+          const SizedBox(height: 12),
+          const _HelpCard(
             icon: Icons.nightlight_outlined,
             title: 'What does EOD mean?',
             body:
                 'EOD stands for "End of Day". You can set your EOD Reminder Time in your profile settings.\n\n'
-                'When it goes off, you\'ll get a quick popup asking you to rate your mood, energy, and focus for the day. It\'s a tiny daily journal entry that takes 5 seconds to fill out.',
+                'When it fires, you can rate your energy, motivation, budget adherence, and reflection notes in a fast 10-second check-in.',
           ),
-          _HelpCard(
+          const _HelpCard(
             icon: Icons.grid_on_outlined,
-            title: 'The purpose of Insights',
+            title: 'Consistency heatmap & pacing',
             body:
-                'Insights is your personal growth dashboard! It takes your daily task scores and EOD reflections and turns them into a beautiful calendar heatmap.\n\n'
-                'It\'s the best place to see your consistency streaks and spot patterns in your mood, productivity, and spending over time. The darker the square, the better your day was!',
+                'Insights transforms your daily task completions and EOD logs into a 35-day consistency heatmap.\n\n'
+                'The Wallet tab in Insights calculates your Safe Daily Spending limit so you never run out of budget before month end.',
           ),
         ],
       ),
@@ -117,22 +157,22 @@ class _Intro extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accentPrimary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.18)),
+        color: AppColors.accentPrimary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.lightbulb_outline, color: AppColors.accentPrimary, size: 20),
+          Icon(Icons.lightbulb_outline_rounded, color: AppColors.accentPrimary, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Tap any item below to expand it and read a full explanation of how that feature works.',
+              'Tap any topic below to expand it and read how the system helps you maintain momentum.',
               style: AppTypography.bodyText.copyWith(
                 color: AppColors.textSecondary,
                 fontSize: 13,
-                height: 1.5,
+                height: 1.45,
               ),
             ),
           ),
@@ -172,7 +212,8 @@ class _GroupHeader extends StatelessWidget {
           label,
           style: AppTypography.sectionLabel.copyWith(
             color: color,
-            letterSpacing: 1.2,
+            letterSpacing: 1.0,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -202,20 +243,21 @@ class _HelpCardState extends State<_HelpCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _expanded = !_expanded),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _expanded = !_expanded);
+      },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
-        margin: const EdgeInsets.only(bottom: 8),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: _expanded
-              ? const Color(0xFF141420)
-              : const Color(0xFF121217),
-          borderRadius: BorderRadius.circular(12),
+          color: _expanded ? AppColors.cardHoverActive : AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _expanded
-                ? AppColors.accentPrimary.withValues(alpha: 0.25)
-                : const Color(0xFF1A1A24),
+                ? AppColors.accentPrimary.withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.06),
           ),
         ),
         child: Column(
@@ -229,31 +271,26 @@ class _HelpCardState extends State<_HelpCard> {
                   Icon(
                     widget.icon,
                     size: 18,
-                    color: _expanded
-                        ? AppColors.accentPrimary
-                        : AppColors.textMuted,
+                    color: _expanded ? AppColors.accentPrimary : AppColors.textPlaceholder,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: AppTypography.bodyText.copyWith(
-                        color: _expanded
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                      style: AppTypography.cardTitle.copyWith(
+                        color: _expanded ? AppColors.textPrimary : AppColors.textSecondary,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14.5,
                       ),
                     ),
                   ),
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0.0,
-                    duration: const Duration(milliseconds: 220),
+                    duration: const Duration(milliseconds: 200),
                     child: Icon(
                       Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: _expanded
-                          ? AppColors.accentPrimary
-                          : AppColors.textMuted,
+                      color: _expanded ? AppColors.accentPrimary : AppColors.textPlaceholder,
                     ),
                   ),
                 ],
@@ -262,8 +299,8 @@ class _HelpCardState extends State<_HelpCard> {
 
             // ── Expandable body ─────────────────────────────────────────────
             AnimatedSize(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeInOut,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutCubic,
               alignment: Alignment.topCenter,
               child: _expanded
                   ? Padding(
@@ -271,14 +308,17 @@ class _HelpCardState extends State<_HelpCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(height: 1, color: const Color(0xFF1A1A24)),
+                          Divider(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.06),
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             widget.body,
                             style: AppTypography.bodyText.copyWith(
-                              color: const Color(0xFFAAAAAC),
+                              color: AppColors.textSecondary,
                               fontSize: 13,
-                              height: 1.65,
+                              height: 1.55,
                             ),
                           ),
                         ],

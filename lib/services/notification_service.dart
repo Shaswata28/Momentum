@@ -47,6 +47,7 @@ void notificationTapBackground(
         if (actionId == 'mark_done') {
           await NotificationService().cancelTaskNotifications(taskId);
         }
+        await NotificationService().cancelLiveTaskNotification();
 
         final updatedTasks = repo.getTasksForDate(DateTime.now());
         await WidgetService.syncWidgetState(updatedTasks);
@@ -85,6 +86,96 @@ class NotificationService {
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
+
+    const AndroidNotificationChannel liveChannel = AndroidNotificationChannel(
+      'live_task_channel_v2',
+      'Live Task Activity',
+      description: 'Ongoing progress and countdown for active routine tasks',
+      importance: Importance.defaultImportance,
+      showBadge: true,
+      enableVibration: false,
+      playSound: false,
+    );
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(liveChannel);
+  }
+
+  static const int liveNotificationId = 888888;
+
+  Future<void> showLiveTaskNotification({
+    required String taskId,
+    required String title,
+    required int progressPercent,
+    required int remainingMinutes,
+    required String endTimeFormatted,
+    String? taskType,
+  }) async {
+    final timeSummary = remainingMinutes > 0
+        ? '$remainingMinutes min${remainingMinutes == 1 ? '' : 's'} left · Ends at $endTimeFormatted'
+        : 'Time is up · Ended at $endTimeFormatted';
+
+    final bigTextLines = [
+      '⏱ $remainingMinutes min${remainingMinutes == 1 ? '' : 's'} remaining (Ends at $endTimeFormatted)',
+      '📊 $progressPercent% elapsed',
+      if (taskType != null && taskType.isNotEmpty) '🏷️ $taskType',
+      '💡 Focus on one task at a time.',
+    ].join('\n');
+
+    final bigTextStyleInformation = BigTextStyleInformation(
+      bigTextLines,
+      contentTitle: title,
+      summaryText: '$progressPercent% • Live Activity',
+      htmlFormatBigText: false,
+      htmlFormatContentTitle: false,
+      htmlFormatSummaryText: false,
+    );
+
+    final androidDetails = AndroidNotificationDetails(
+      'live_task_channel_v2',
+      'Live Task Activity',
+      channelDescription: 'Ongoing progress and countdown for active routine tasks',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      ongoing: true,
+      autoCancel: false,
+      onlyAlertOnce: true,
+      showProgress: true,
+      maxProgress: 100,
+      progress: progressPercent,
+      subText: '$progressPercent%',
+      category: AndroidNotificationCategory.progress,
+      styleInformation: bigTextStyleInformation,
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'mark_done',
+          '✓ Complete',
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
+        AndroidNotificationAction(
+          'skip',
+          'Skip',
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
+      ],
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      liveNotificationId,
+      title,
+      timeSummary,
+      NotificationDetails(android: androidDetails),
+      payload: taskId,
+    );
+  }
+
+  Future<void> cancelLiveTaskNotification() async {
+    await flutterLocalNotificationsPlugin.cancel(liveNotificationId);
   }
 
   Future<void> requestPermissions() async {
@@ -222,52 +313,6 @@ class NotificationService {
 
   Future<void> scheduleEODPrompt() async {
     await rescheduleEODPrompt(const TimeOfDay(hour: 22, minute: 30));
-  }
-
-  /// Schedules a daily 9 AM reminder for a focus item.
-  /// Uses a stable ID derived from the goal's id hash.
-  Future<void> scheduleFocusReminder(
-    String goalId,
-    String title,
-    bool isHabit,
-  ) async {
-    final notifId = 200000000 + (goalId.hashCode.abs() % 100000000);
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'focus_channel',
-          'Monthly Focus Reminders',
-          channelDescription:
-              'Daily reminders to keep up with your monthly goals and habits',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        );
-    const NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-    );
-
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, 9, 0);
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-
-    final label = isHabit ? 'habit' : 'goal';
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      notifId,
-      'Keep it up!',
-      'Don\'t forget your $label: $title',
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
-  }
-
-  Future<void> cancelFocusReminder(String goalId) async {
-    final notifId = 200000000 + (goalId.hashCode.abs() % 100000000);
-    await flutterLocalNotificationsPlugin.cancel(notifId);
   }
 
   Future<void> rescheduleEODPrompt(TimeOfDay time) async {

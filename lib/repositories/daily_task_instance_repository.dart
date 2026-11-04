@@ -1,6 +1,5 @@
 import 'package:hive/hive.dart';
 import '../models/daily_task_instance.dart';
-import '../models/enums.dart';
 
 /// Central hub capturing all interactions strictly limited to [DailyTaskInstance] logic.
 class DailyTaskInstanceRepository {
@@ -9,14 +8,6 @@ class DailyTaskInstanceRepository {
   /// Retrieves tasks exclusively mapped to a specific calendar date.
   List<DailyTaskInstance> getTasksForDate(DateTime date) {
     return _box.values.where((t) => _isSameDay(t.date, date)).toList();
-  }
-
-  /// Fetches all floating tasks currently pending irrespective of date for EOD check-in.
-  List<DailyTaskInstance> getAllPendingFloating() {
-    return _box.values
-        .where((t) =>
-            t.taskType == TaskType.floating && t.status == TaskStatus.pending)
-        .toList();
   }
 
   /// Stores or updates an individual task instance.

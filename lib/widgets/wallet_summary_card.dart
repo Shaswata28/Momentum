@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-import '../../providers/wallet_providers.dart';
-import '../../models/transaction.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_typography.dart';
-import 'action_button.dart';
+import '../providers/wallet_providers.dart';
+import '../providers/dashboard_providers.dart';
+import '../models/enums.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
+import '../services/focus_blocker_service.dart';
+import '../screens/wallet/transaction_sheet.dart';
+import '../screens/profile/app_blocker_settings_screen.dart';
 
 class WalletSummaryCard extends ConsumerStatefulWidget {
   const WalletSummaryCard({super.key});
@@ -15,200 +18,308 @@ class WalletSummaryCard extends ConsumerStatefulWidget {
 }
 
 class _WalletSummaryCardState extends ConsumerState<WalletSummaryCard> {
-  bool _isExpanded = false;
-  bool _isIncome = true;
-  final _amountCtrl = TextEditingController();
-  final _noteCtrl = TextEditingController();
-  
-  Color _flashColor = AppColors.textPrimary;
-  double _balanceScale = 1.0;
-
-  void _toggle(bool income) {
-    setState(() {
-      if (_isExpanded && _isIncome == income) {
-        _isExpanded = false;
-        FocusScope.of(context).unfocus();
-      } else {
-        _isExpanded = true;
-        _isIncome = income;
-      }
-    });
-  }
-
-  Future<void> _save() async {
-    final amt = double.tryParse(_amountCtrl.text) ?? 0.0;
-    if (amt <= 0) return;
-    
-    final tx = Transaction(
-      id: const Uuid().v4(),
-      date: DateTime.now(),
-      direction: _isIncome ? Direction.income : Direction.expense,
-      amount: amt,
-      note: _noteCtrl.text.trim(),
-      monthId: ref.read(currentMonthIdProvider),
-    );
-    
-    await ref.read(walletNotifierProvider.notifier).addTransaction(tx);
-    
-    final wasIncome = _isIncome;
-    setState(() {
-      _isExpanded = false;
-      _flashColor = wasIncome ? AppColors.successDone : AppColors.dangerOverdue;
-      _balanceScale = 1.08;
-      // Delay clearing text fields slightly so the collapse animation looks smooth
-      // without text vanishing instantly.
-    });
-    FocusScope.of(context).unfocus();
-    
-    Future.delayed(const Duration(milliseconds: 150), () {
-      if (mounted) {
-        _amountCtrl.clear();
-        _noteCtrl.clear();
-      }
-    });
-
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) {
-        setState(() {
-          _flashColor = AppColors.textPrimary;
-          _balanceScale = 1.0;
-        });
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final balance = ref.watch(runningBalanceProvider);
+    final todayTasks = ref.watch(todayTasksProvider);
+    final isDndActive = todayTasks.any((t) => t.enableDND && t.status == TaskStatus.inProgress);
+    final blockedCount = FocusBlockerService().getBlockedPackages().length;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF121217),
-        border: Border.all(color: const Color(0xFF1A1A24)),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    return Row(
+      children: [
+        // ── 1. Square Wallet Card (Left) ───────────────────────────
+        Expanded(
+          child: _buildSquareCard(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const TransactionSheet(initialIsIncome: false),
+              );
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Top Row: Category Label + Sleek Unified '+ Log' Pill
+                Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: AppColors.adHocTask.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet_rounded,
+                        size: 14,
+                        color: AppColors.adHocTask,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'WALLET',
+                      style: AppTypography.sectionLabel.copyWith(
+                        fontSize: 10,
+                        letterSpacing: 0.8,
+                        color: AppColors.textPlaceholder,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Sleek unified '+ Log' action pill
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const TransactionSheet(initialIsIncome: false),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.add_rounded,
+                              size: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 2.5),
+                            Text(
+                              'LOG',
+                              style: AppTypography.cardTime.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Center: Balance Value
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: balance),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, val, _) {
+                    return Text(
+                      currencyFormat.format(val),
+                      style: AppTypography.displayHeading.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                ),
+
+                // Bottom Row: Subtitle + Forward Chevron
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Available Balance',
+                        style: AppTypography.bodyText.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 9.5,
+                      color: AppColors.textPlaceholder,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // ── 2. Square Focus Shield Card (Right) ─────────────────────
+        Expanded(
+          child: _buildSquareCard(
+            onTap: () async {
+              HapticFeedback.lightImpact();
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AppBlockerSettingsScreen()),
+              );
+              if (mounted) setState(() {});
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Top Row: Category Label + Active/Ready Status Pill
+                Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentPrimary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Icon(
+                        Icons.shield_rounded,
+                        size: 14,
+                        color: AppColors.accentPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'SHIELD',
+                      style: AppTypography.sectionLabel.copyWith(
+                        fontSize: 10,
+                        letterSpacing: 0.8,
+                        color: AppColors.textPlaceholder,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: isDndActive
+                            ? AppColors.successDone.withValues(alpha: 0.16)
+                            : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isDndActive
+                              ? AppColors.successDone.withValues(alpha: 0.3)
+                              : Colors.white.withValues(alpha: 0.05),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        isDndActive ? 'ACTIVE' : 'READY',
+                        style: AppTypography.cardTime.copyWith(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: isDndActive ? AppColors.successDone : AppColors.textPlaceholder,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Center: Large Shield Emblem with Number of Blocked Apps Inside
+                Center(
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      const Icon(Icons.account_balance_wallet_outlined, size: 16, color: Color(0xFF2A5080)),
-                      const SizedBox(width: 8),
-                      Text('WALLET BALANCE', style: AppTypography.sectionLabel),
+                      Icon(
+                        Icons.shield_rounded,
+                        size: 52,
+                        color: isDndActive
+                            ? AppColors.accentPrimary.withValues(alpha: 0.22)
+                            : Colors.white.withValues(alpha: 0.08),
+                      ),
+                      Icon(
+                        Icons.shield_outlined,
+                        size: 52,
+                        color: isDndActive
+                            ? AppColors.accentPrimary
+                            : Colors.white.withValues(alpha: 0.24),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 3.5),
+                        child: Text(
+                          '$blockedCount',
+                          style: AppTypography.scoreStat.copyWith(
+                            fontSize: blockedCount > 99 ? 15 : 19,
+                            fontWeight: FontWeight.w700,
+                            color: isDndActive ? Colors.white : AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  AnimatedScale(
-                    scale: _balanceScale,
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutBack,
-                    alignment: Alignment.centerLeft,
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                      style: AppTypography.scoreStat.copyWith(color: _flashColor, fontSize: 24),
-                      child: Text(currencyFormat.format(balance)),
+                ),
+
+                // Bottom Row: Subtitle + Forward Chevron
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        blockedCount == 1 ? '1 app blocked' : '$blockedCount apps shielded',
+                        style: AppTypography.bodyText.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                   IntrinsicWidth(
-                     child: ActionButton(
-                       icon: Icons.add,
-                       label: 'In',
-                       color: AppColors.successDone,
-                       onTap: () => _toggle(true),
-                     ),
-                   ),
-                   const SizedBox(width: 8),
-                   IntrinsicWidth(
-                     child: ActionButton(
-                       icon: Icons.remove,
-                       label: 'Out',
-                       color: AppColors.warningTag,
-                       onTap: () => _toggle(false),
-                     ),
-                   ),
-                ],
-              )
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            child: !_isExpanded ? const SizedBox() : Container(
-               margin: const EdgeInsets.only(top: 16),
-               padding: const EdgeInsets.only(top: 16),
-               decoration: const BoxDecoration(
-                 border: Border(top: BorderSide(color: Color(0xFF1A1A24))),
-               ),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                 children: [
-                   Row(
-                     children: [
-                       Expanded(
-                         child: TextField(
-                           controller: _amountCtrl,
-                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                           style: AppTypography.scoreStat.copyWith(color: _isIncome ? AppColors.successDone : AppColors.warningTag),
-                           decoration: InputDecoration(
-                             hintText: '0.00',
-                             hintStyle: AppTypography.scoreStat.copyWith(color: AppColors.textMuted),
-                             border: InputBorder.none,
-                             prefixText: '৳ ',
-                             prefixStyle: AppTypography.scoreStat.copyWith(color: AppColors.textMuted),
-                           ),
-                         ),
-                       ),
-                       Container(
-                         height: 32,
-                         width: 1,
-                         color: const Color(0xFF1A1A24),
-                         margin: const EdgeInsets.symmetric(horizontal: 12),
-                       ),
-                       Expanded(
-                         flex: 2,
-                         child: TextField(
-                           controller: _noteCtrl,
-                           style: AppTypography.bodyText,
-                           decoration: InputDecoration(
-                             hintText: 'What was it for?',
-                             hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textSecondary),
-                             border: InputBorder.none,
-                           ),
-                         ),
-                       ),
-                     ],
-                   ),
-                   const SizedBox(height: 12),
-                   Align(
-                     alignment: Alignment.centerRight,
-                     child: TextButton(
-                       onPressed: _save,
-                       style: TextButton.styleFrom(
-                         backgroundColor: _isIncome ? AppColors.successDone.withValues(alpha: 0.1) : AppColors.warningTag.withValues(alpha: 0.1),
-                         foregroundColor: _isIncome ? AppColors.successDone : AppColors.warningTag,
-                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                       ),
-                       child: Text('Add ${_isIncome ? 'Income' : 'Expense'}', style: AppTypography.buttonLabel),
-                     ),
-                   )
-                 ],
-               ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 9.5,
+                      color: AppColors.textPlaceholder,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          )
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSquareCard({required Widget child, required VoidCallback onTap}) {
+    return Container(
+      height: 138,
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: child,
+          ),
+        ),
       ),
     );
   }

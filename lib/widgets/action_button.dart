@@ -20,34 +20,50 @@ class ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = color != null 
-        ? color!.withValues(alpha: 0.15) 
+    final bgColor = color != null
+        ? color!.withValues(alpha: 0.15)
         : (isPrimary ? AppColors.accentPrimary : AppColors.cardHoverActive);
-        
-    final fgColor = color != null 
-        ? color! 
+
+    final fgColor = color != null
+        ? color!
         : (isPrimary ? Colors.white : AppColors.textPrimary);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-           color: bgColor,
-           borderRadius: BorderRadius.circular(8),
-           border: Border.all(color: fgColor.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-             if (icon != null) ...[
-               Icon(icon, color: fgColor, size: 18),
-               const SizedBox(width: 8),
-             ],
-             Text(label, style: AppTypography.buttonLabel.copyWith(color: fgColor)),
-          ],
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isPrimary
+                  ? AppColors.accentPrimary.withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: fgColor, size: 18),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: AppTypography.buttonLabel.copyWith(
+                  color: fgColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

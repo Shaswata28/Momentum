@@ -56,3 +56,6 @@ flutter_launcher_icons.yaml
 
 # Lock file (optional — include if you want reproducible builds)
 # pubspec.lock
+
+/android/build/
+android/.gradle/

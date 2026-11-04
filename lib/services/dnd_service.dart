@@ -1,6 +1,7 @@
 import 'package:flutter_dnd/flutter_dnd.dart';
 import '../models/daily_task_instance.dart';
 import '../models/enums.dart';
+import 'focus_blocker_service.dart';
 import 'dart:async';
 
 class DndService {
@@ -14,6 +15,7 @@ class DndService {
 
   void updateTasks(List<DailyTaskInstance> tasks) {
     _todayTasks = tasks;
+    FocusBlockerService().syncTasks(tasks);
   }
 
   Future<void> init() async {
@@ -59,6 +61,7 @@ class DndService {
            await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_ALL);
            _isDndActive = false;
        }
+       FocusBlockerService().syncTasks(_todayTasks);
     });
   }
 }

@@ -9,9 +9,19 @@ final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '৳', dec
 
 final walletRepositoryProvider = Provider((ref) => WalletRepository());
 
-final currentMonthIdProvider = Provider<String>((ref) {
+/// The currently selected month in the wallet screen. Defaults to current month 1st day.
+final selectedMonthDateProvider = StateProvider<DateTime>((ref) {
   final now = DateTime.now();
-  return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  return DateTime(now.year, now.month, 1);
+});
+
+final selectedMonthIdProvider = Provider<String>((ref) {
+  final dt = ref.watch(selectedMonthDateProvider);
+  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
+});
+
+final currentMonthIdProvider = Provider<String>((ref) {
+  return ref.watch(selectedMonthIdProvider);
 });
 
 final currentMonthSummaryProvider = Provider<MonthSummary?>((ref) {
@@ -48,6 +58,55 @@ final runningBalanceProvider = Provider<double>((ref) {
 final openingBalanceProvider = Provider<double>((ref) {
   final summary = ref.watch(currentMonthSummaryProvider);
   return summary?.openingBalance ?? 0.0;
+});
+
+class MonthlyTotals {
+  final double totalIncome;
+  final double totalExpense;
+  final double netSavings;
+
+  const MonthlyTotals({
+    required this.totalIncome,
+    required this.totalExpense,
+    required this.netSavings,
+  });
+}
+
+final monthlyTotalsProvider = Provider<MonthlyTotals>((ref) {
+  final txs = ref.watch(currentTransactionsProvider);
+  final repo = ref.watch(walletRepositoryProvider);
+  double income = 0;
+  double expense = 0;
+
+  for (final t in txs) {
+    if (t.isSettled &&
+        (t.expenseType == ExpenseType.borrowed || t.expenseType == ExpenseType.lent) &&
+        !repo.hasSettledCounterpart(t.id)) {
+      continue;
+    }
+    if (t.direction == Direction.income) {
+      income += t.amount;
+    } else if (t.direction == Direction.expense) {
+      expense += t.amount;
+    }
+  }
+
+  return MonthlyTotals(
+    totalIncome: income,
+    totalExpense: expense,
+    netSavings: income - expense,
+  );
+});
+
+final dailySpendingProvider = Provider<Map<int, double>>((ref) {
+  final txs = ref.watch(currentTransactionsProvider);
+  final map = <int, double>{};
+  for (final t in txs) {
+    if (t.direction == Direction.expense) {
+      map[t.date.day] = (map[t.date.day] ?? 0) + t.amount;
+    }
+  }
+  return map;
 });
 
 class WalletNotifier extends StateNotifier<void> {

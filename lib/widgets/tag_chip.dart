@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
 enum TagType { fixed, floating, adhoc, buffer, dnd, missed }
@@ -11,53 +12,58 @@ class TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bg;
-    Color textCol;
-    Color borderCol;
+    Color textColor = AppColors.textMuted;
+    Color bgColor = Colors.white.withValues(alpha: 0.04);
+    Color borderColor = Colors.white.withValues(alpha: 0.06);
 
     switch (type) {
       case TagType.fixed:
-        bg = const Color(0xFF0D1D35);
-        textCol = const Color(0xFF1A6FE8);
-        borderCol = const Color(0xFF1A3050);
-        break;
       case TagType.floating:
-        bg = const Color(0xFF0D1520);
-        textCol = const Color(0xFF4A7AAA);
-        borderCol = const Color(0xFF162030);
-        break;
       case TagType.adhoc:
-        bg = const Color(0xFF201808);
-        textCol = const Color(0xFFF5A623);
-        borderCol = const Color(0xFF302010);
+        textColor = AppColors.textSecondary;
+        bgColor = Colors.white.withValues(alpha: 0.04);
+        borderColor = Colors.white.withValues(alpha: 0.06);
         break;
       case TagType.buffer:
-        bg = const Color(0xFF111114);
-        textCol = const Color(0xFF444450);
-        borderCol = const Color(0xFF1A1A24);
+        textColor = AppColors.textPlaceholder;
+        bgColor = Colors.white.withValues(alpha: 0.03);
+        borderColor = Colors.white.withValues(alpha: 0.04);
         break;
       case TagType.dnd:
-        bg = const Color(0xFF0D2010);
-        textCol = const Color(0xFF1D9E75);
-        borderCol = const Color(0xFF0F3018);
+        textColor = AppColors.accentPrimary;
+        bgColor = AppColors.accentPrimary.withValues(alpha: 0.08);
+        borderColor = AppColors.accentPrimary.withValues(alpha: 0.16);
         break;
       case TagType.missed:
-        bg = const Color(0xFF2A0D0D);
-        textCol = const Color(0xFFE24B4A);
-        borderCol = const Color(0xFF4A1A1A);
+        textColor = AppColors.errorAlert;
+        bgColor = AppColors.errorAlert.withValues(alpha: 0.08);
+        borderColor = AppColors.errorAlert.withValues(alpha: 0.18);
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 2.5, horizontal: 7),
       decoration: BoxDecoration(
-        color: bg,
+        color: bgColor,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: borderCol, width: 1),
+        border: Border.all(color: borderColor, width: 1),
       ),
-      child: Text(
-        label,
-        style: AppTypography.tagChip.copyWith(color: textCol),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (type == TagType.dnd) ...[
+            Icon(Icons.shield_outlined, size: 10.5, color: AppColors.accentPrimary),
+            const SizedBox(width: 3.5),
+          ],
+          Text(
+            label,
+            style: AppTypography.tagChip.copyWith(
+              color: textColor,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

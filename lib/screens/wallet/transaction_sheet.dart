@@ -89,8 +89,6 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     super.dispose();
   }
 
-  // ── Color helpers ───────────────────────────────────────────────────────────
-
   Color get _modeColor {
     switch (_mode) {
       case _TxMode.income:     return AppColors.successDone;
@@ -99,79 +97,105 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     }
   }
 
-  // ── Save ────────────────────────────────────────────────────────────────────
-
   Future<void> _save() async {
-    final amt = double.tryParse(_amountCtrl.text) ?? 0.0;
-    if (amt <= 0) return;
+    final amt = double.tryParse(_amountCtrl.text.trim());
+    if (amt == null || amt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a valid amount'),
+          backgroundColor: AppColors.errorAlert,
+        ),
+      );
+      return;
+    }
 
     HapticFeedback.mediumImpact();
+    final monthId = ref.read(currentMonthIdProvider);
+    final id = const Uuid().v4();
+    final note = _noteCtrl.text.trim();
     final now = DateTime.now();
-    final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
-    Transaction tx;
+    final Transaction tx;
 
     switch (_mode) {
       case _TxMode.income:
         tx = Transaction(
-          id: const Uuid().v4(),
+          id: id,
           date: now,
           direction: Direction.income,
           amount: amt,
           incomeSource: _incSrc,
-          note: _noteCtrl.text.trim(),
-          isSettled: true,
+          note: note,
           monthId: monthId,
         );
+        break;
 
       case _TxMode.expense:
         tx = Transaction(
-          id: const Uuid().v4(),
+          id: id,
           date: now,
           direction: Direction.expense,
           amount: amt,
           expenseType: _expType,
-          note: _noteCtrl.text.trim(),
-          isSettled: true,
+          note: note,
           monthId: monthId,
         );
+        break;
 
       case _TxMode.borrowLend:
         tx = Transaction(
-          id: const Uuid().v4(),
+          id: id,
           date: now,
-          // Borrowed (received) uses Direction.income so prefix is + in row
-          // Lent (given out) uses Direction.expense so prefix is -
           direction: _isBorrowed ? Direction.income : Direction.expense,
           amount: amt,
           expenseType: _isBorrowed ? ExpenseType.borrowed : ExpenseType.lent,
-          note: _noteCtrl.text.trim(),
+          note: note,
           isSettled: _isSettled,
           monthId: monthId,
         );
+        HapticFeedback.lightImpact();
+        await ref.read(walletNotifierProvider.notifier).addTransaction(tx);
+        if (_isSettled) {
+          await ref.read(walletNotifierProvider.notifier).settleTransaction(tx);
+        }
+        if (mounted) Navigator.pop(context);
+        return;
     }
 
+    HapticFeedback.lightImpact();
     await ref.read(walletNotifierProvider.notifier).addTransaction(tx);
     if (mounted) Navigator.pop(context);
   }
-
-  // ── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final keyboardSpace = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.appBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + keyboardSpace),
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + keyboardSpace),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
             // ── 3-way mode toggle ─────────────────────────────────────────
             Row(
               children: [
@@ -190,35 +214,39 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
                 ),
                 const SizedBox(width: 8),
                 _ModeTab(
-                  label: 'Borrow/Lend',
+                  label: 'Borrow / Lend',
                   color: AppColors.accentPrimary,
                   active: _mode == _TxMode.borrowLend,
                   onTap: () => setState(() => _mode = _TxMode.borrowLend),
                 ),
               ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // ── Amount input ──────────────────────────────────────────────
             TextField(
               controller: _amountCtrl,
+              autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               textAlign: TextAlign.center,
               style: AppTypography.displayHeading.copyWith(
-                fontSize: 48,
+                fontSize: 44,
+                fontWeight: FontWeight.w700,
                 color: _modeColor,
               ),
               decoration: InputDecoration(
                 hintText: '0.00',
                 hintStyle: AppTypography.displayHeading.copyWith(
-                  fontSize: 48,
-                  color: AppColors.textMuted.withValues(alpha: 0.3),
+                  fontSize: 44,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPlaceholder,
                 ),
                 border: InputBorder.none,
                 prefixText: '৳ ',
                 prefixStyle: AppTypography.displayHeading.copyWith(
-                  fontSize: 48,
-                  color: AppColors.textSecondary,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPlaceholder,
                 ),
               ),
             ),
@@ -235,26 +263,28 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF121217),
+                color: AppColors.appBackground,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.subtleBorder),
               ),
               child: TextField(
                 controller: _noteCtrl,
-                style: AppTypography.bodyText,
+                style: AppTypography.bodyText.copyWith(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: _mode == _TxMode.borrowLend
                       ? 'Who did you borrow from / lend to?'
                       : 'Add an optional note...',
-                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textMuted),
+                  hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder, fontSize: 13),
                   border: InputBorder.none,
                 ),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             ActionButton(
-              icon: Icons.check,
-              label: 'SAVE TRANSACTION',
+              icon: Icons.check_rounded,
+              label: 'Save Transaction',
+              isPrimary: true,
               color: _modeColor,
               onTap: _save,
             ),
@@ -316,7 +346,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('TYPE', style: AppTypography.sectionLabel),
+        Text('DIRECTION', style: AppTypography.sectionLabel),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -325,62 +355,72 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
                 onTap: () => setState(() => _isBorrowed = true),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
                     color: _isBorrowed
                         ? AppColors.errorAlert.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
+                        : AppColors.appBackground,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _isBorrowed ? AppColors.errorAlert : const Color(0xFF1E1E2E),
+                      color: _isBorrowed ? AppColors.errorAlert : Colors.white.withValues(alpha: 0.07),
+                      width: 1.5,
                     ),
                   ),
                   child: Column(
                     children: [
+                      Icon(Icons.call_received_rounded, color: AppColors.errorAlert, size: 20),
+                      const SizedBox(height: 6),
                       Text(
                         'Borrowed',
                         style: AppTypography.buttonLabel.copyWith(
-                          color: _isBorrowed ? AppColors.errorAlert : AppColors.textMuted,
+                          color: _isBorrowed ? AppColors.errorAlert : AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        'money came in',
-                        style: AppTypography.sectionLabel.copyWith(fontSize: 9),
+                        'Money came in',
+                        style: AppTypography.bodyText.copyWith(color: AppColors.textMuted, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Expanded(
               child: GestureDetector(
                 onTap: () => setState(() => _isBorrowed = false),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
                     color: !_isBorrowed
                         ? AppColors.accentPrimary.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
+                        : AppColors.appBackground,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: !_isBorrowed ? AppColors.accentPrimary : const Color(0xFF1E1E2E),
+                      color: !_isBorrowed ? AppColors.accentPrimary : Colors.white.withValues(alpha: 0.07),
+                      width: 1.5,
                     ),
                   ),
                   child: Column(
                     children: [
+                      Icon(Icons.call_made_rounded, color: AppColors.accentPrimary, size: 20),
+                      const SizedBox(height: 6),
                       Text(
                         'Lent',
                         style: AppTypography.buttonLabel.copyWith(
-                          color: !_isBorrowed ? AppColors.accentPrimary : AppColors.textMuted,
+                          color: !_isBorrowed ? AppColors.accentPrimary : AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        'money went out',
-                        style: AppTypography.sectionLabel.copyWith(fontSize: 9),
+                        'Money went out',
+                        style: AppTypography.bodyText.copyWith(color: AppColors.textMuted, fontSize: 11),
                       ),
                     ],
                   ),
@@ -398,24 +438,25 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             decoration: BoxDecoration(
               color: _isSettled
                   ? AppColors.successDone.withValues(alpha: 0.08)
-                  : const Color(0xFF121217),
-              borderRadius: BorderRadius.circular(10),
+                  : AppColors.appBackground,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _isSettled ? AppColors.successDone.withValues(alpha: 0.4) : const Color(0xFF1E1E2E),
+                color: _isSettled ? AppColors.successDone.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.07),
               ),
             ),
             child: Row(
               children: [
                 Icon(
-                  _isSettled ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: _isSettled ? AppColors.successDone : AppColors.textMuted,
-                  size: 18,
+                  _isSettled ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  color: _isSettled ? AppColors.successDone : AppColors.textPlaceholder,
+                  size: 20,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Already settled / paid back',
+                  'Already settled / repaid',
                   style: AppTypography.bodyText.copyWith(
                     color: _isSettled ? AppColors.successDone : AppColors.textSecondary,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -446,15 +487,16 @@ class _ModeTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: active ? color.withValues(alpha: 0.15) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: active ? color : const Color(0xFF1E1E2E)),
+            color: active ? color.withValues(alpha: 0.15) : AppColors.appBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: active ? color : Colors.white.withValues(alpha: 0.07)),
           ),
           child: Text(
             label,
             style: AppTypography.buttonLabel.copyWith(
               color: active ? color : AppColors.textMuted,
               fontSize: 12,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ),
@@ -475,17 +517,18 @@ class _Chip extends StatelessWidget {
       duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: active ? color.withValues(alpha: 0.15) : const Color(0xFF121217),
-        borderRadius: BorderRadius.circular(20),
+        color: active ? color.withValues(alpha: 0.15) : AppColors.appBackground,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: active ? color.withValues(alpha: 0.6) : const Color(0xFF1E1E2E),
+          color: active ? color.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.07),
         ),
       ),
       child: Text(
         label,
         style: AppTypography.bodyText.copyWith(
-          color: active ? color : AppColors.textMuted,
+          color: active ? color : AppColors.textSecondary,
           fontSize: 13,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
     );

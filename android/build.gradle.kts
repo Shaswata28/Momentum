@@ -31,3 +31,15 @@ subprojects {
         }
     }
 }
+
+// Force all Kotlin compile tasks across all subprojects (including Flutter plugins)
+// to use JVM 17, fixing the home_widget error:
+// "Cannot inline bytecode built with JVM target 11 into bytecode being built with JVM target 1.8"
+// The Java/Kotlin consistency check is handled via kotlin.jvm.target.validation.mode in gradle.properties.
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+}

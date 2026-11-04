@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import 'add_task_sheet.dart';
-import 'package:flutter/services.dart';
 
 class QuickAddButton extends StatefulWidget {
   const QuickAddButton({super.key});
-  
+
   @override
   State<QuickAddButton> createState() => _QuickAddButtonState();
 }
 
 class _QuickAddButtonState extends State<QuickAddButton> {
-  bool _isHovered = false;
+  bool _isPressed = false;
 
   void _onTap(BuildContext context) {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, 
+      backgroundColor: Colors.transparent,
       builder: (ctx) => const AddTaskSheet(),
     );
   }
@@ -29,34 +28,52 @@ class _QuickAddButtonState extends State<QuickAddButton> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _onTap(context),
-      onTapDown: (_) => setState(() => _isHovered = true),
-      onTapUp: (_) => setState(() => _isHovered = false),
-      onTapCancel: () => setState(() => _isHovered = false),
-      child: Container(
-        margin: const EdgeInsets.only(top: 8, bottom: 24), // Margin added for scroll clearance
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF13131A),
-          borderRadius: BorderRadius.circular(14),
-          // We use solid borderline to simulate dashed specs safely inside Flutter's native box tree
-          border: Border.all(color: _isHovered ? AppColors.accentPrimary : const Color(0xFF252535)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 22,
-              height: 22,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A2E),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF252545)),
-              ),
-              child: const Text('+', style: TextStyle(color: AppColors.accentPrimary, fontSize: 14)),
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.985 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.only(top: 4, bottom: 8),
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _isPressed
+                  ? AppColors.accentPrimary.withValues(alpha: 0.5)
+                  : AppColors.cardBorder,
             ),
-            const SizedBox(width: 12),
-            Text('Add a task for today...', style: AppTypography.bodyText.copyWith(color: const Color(0xFF333345), fontSize: 13)),
-          ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.accentPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 16,
+                  color: AppColors.accentPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Add a task for today...',
+                style: AppTypography.bodyText.copyWith(
+                  color: AppColors.textPlaceholder,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

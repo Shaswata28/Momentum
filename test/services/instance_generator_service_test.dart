@@ -1,13 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:daily_tracker/models/enums.dart';
-import 'package:daily_tracker/models/routine_period.dart';
-import 'package:daily_tracker/models/routine_task.dart';
-import 'package:daily_tracker/models/daily_task_instance.dart';
-import 'package:daily_tracker/repositories/routine_period_repository.dart';
-import 'package:daily_tracker/repositories/routine_task_repository.dart';
-import 'package:daily_tracker/repositories/daily_task_instance_repository.dart';
-import 'package:daily_tracker/services/instance_generator_service.dart';
+import 'package:flutter/services.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:momentum/models/enums.dart';
+import 'package:momentum/models/routine_period.dart';
+import 'package:momentum/models/routine_task.dart';
+import 'package:momentum/models/daily_task_instance.dart';
+import 'package:momentum/repositories/routine_period_repository.dart';
+import 'package:momentum/repositories/routine_task_repository.dart';
+import 'package:momentum/repositories/daily_task_instance_repository.dart';
+import 'package:momentum/services/instance_generator_service.dart';
 
 class FakePeriodRepo implements RoutinePeriodRepository {
   RoutinePeriod? activePeriod;
@@ -32,13 +35,25 @@ class FakeInstanceRepo implements DailyTaskInstanceRepository {
   @override Future<void> saveAll(List<DailyTaskInstance> tasks) async {
     savedInstances.addAll(tasks);
   }
-  @override List<DailyTaskInstance> getTasksForDate(DateTime date) => throw UnimplementedError();
+  @override List<DailyTaskInstance> getTasksForDate(DateTime date) =>
+      savedInstances.where((t) => t.date.year == date.year && t.date.month == date.month && t.date.day == date.day).toList();
   @override List<DailyTaskInstance> getAllPendingFloating() => throw UnimplementedError();
   @override Future<void> save(DailyTaskInstance task) => throw UnimplementedError();
   @override Future<void> delete(String id) => throw UnimplementedError();
 }
 
 void main() {
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('UTC'));
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'),
+      (MethodCall methodCall) async => null,
+    );
+  });
+
   group('InstanceGeneratorService', () {
     late FakePeriodRepo periodRepo;
     late FakeTaskRepo taskRepo;

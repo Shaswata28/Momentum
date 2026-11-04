@@ -13,6 +13,8 @@
     <img src="https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
+  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version 1.2.0" />
+  &nbsp;
   <img src="https://img.shields.io/badge/Platform-Android-blue?style=for-the-badge&logo=android" alt="Android" />
   &nbsp;
   <img src="https://img.shields.io/badge/Built%20with-Flutter-02569B?style=for-the-badge&logo=flutter" alt="Flutter" />
@@ -28,7 +30,6 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 
 ## 📸 Screenshots
 
-
 <p align="center">
   <img src="screenshots/Dashboard.png" width="19%" />
   <img src="screenshots/Wallet.png" width="19%" />
@@ -37,19 +38,40 @@ Momentum helps you structure your day through scheduled task blocks, track your 
   <img src="screenshots/Routine Builder2.png" width="19%" />
 </p>
 
+---
+
+## 🚀 What's New in v1.2.0
+
+- 🌓 **Full Light Theme Mode**: Things 3 & Apple-inspired minimalist light aesthetic with pure white cards (`#FFFFFF`), Apple System Grouped Gray background (`#F2F2F7`), crisp Slate typography, accessible Focus Blue accent (`#2563EB`), and a 3-way segmented toggle (**System**, **Dark**, **Light**) in Profile settings.
+- 🛡️ **Focus Shield (App Blocker)**: Automatically prevents distractions during active Do Not Disturb tasks. Features a calming Mindful Friction overlay screen and 3 emergency passes per day.
+- 🗓️ **Friday & Saturday Weekend Logic**: Workday schedule shifted to Sunday through Thursday, recognizing Friday and Saturday as weekends for academic and regional calendars.
+- 🧙‍♂️ **Step-by-Step Task Wizard**: Interactive routine creation with smart suggestions, duration presets, custom DND, and buffer time configuration.
+- 🎨 **UI & Typography Polish**: Overhauled spacing, card borders, and responsive layouts across Today, Wallet, Insights, Routine, and Profile screens.
 
 ---
 
 ## ✨ Features
 
+### 🌓 Appearance & Themes
+- Seamless 3-way theme selection: **System**, **Dark**, and **Light**
+- Dynamic token adaptation: cards, elevated surfaces, borders, and typography instantly switch
+- Things 3 / Apple minimalist design language with 6% subtle borders and high-contrast semantic indicators
+
 ### 🗓️ Today (Dashboard)
 - Personalized greeting with time-aware salutation
 - Live progress pill and animated health score
 - Wallet summary card with inline income/expense logging
-- Monthly Focus — scrollable goal and habit chip strip with daily reminders
+- Friday & Saturday weekend recognition (Sunday–Thursday workweek)
 - Task list grouped by time block (Morning · Afternoon · Evening)
 - Task cards with expand-to-act: mark done, skip, or reschedule
 - Collapsible completed tasks and quick-add for ad-hoc tasks
+
+### 🛡️ Focus Shield (Distraction Blocker)
+- Native Android accessibility service monitoring foreground app launches
+- Blocks distracting apps during active DND tasks
+- Mindful Friction screen with breath-pacing pause and return-to-task shortcut
+- 3 daily emergency passes for essential interruptions
+- Granular app selection organized by category (Social, Games, Media, Messages)
 
 ### 💰 Wallet
 - Running monthly balance with opening balance carry-forward
@@ -60,10 +82,10 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 
 ### 📊 Insights
 - Weekly health score ring with animated arc and letter grade (A–F)
-- Energy bar chart (Mon–Sun) from end-of-day logs
+- Energy bar chart (Sun–Sat) from end-of-day logs
 - 35-day consistency heatmap with score-based color intensity
 - Income vs. Spend bar chart
-- Budget discipline indicator
+- Budget discipline indicator and spending pace metrics
 
 ### 🌙 End-of-Day Log
 - Triggered via the **Close Day** button after 9 PM
@@ -71,9 +93,10 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 - Calculates a health score from task completion weighted by type
 - Displays a read-only summary card if today is already logged
 
-### 🔧 Routine Builder
-- 7-column weekly planner (Mon–Sun)
+### 🔧 Routine Builder & Task Wizard
+- 7-column weekly planner (Sun–Sat)
 - Task types: **Fixed** (exact time), **Floating** (flex window), **Adhoc** (one-off)
+- Interactive Task Wizard with presets and suggestion tags
 - Per-task settings: duration, buffer time, Do Not Disturb toggle
 
 ### 🔔 Background & System
@@ -90,7 +113,7 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 > **The app is not yet on the Play Store.** You can download the latest APK directly from GitHub Releases.
 
 1. Go to the [**Releases**](../../releases) page.
-2. Download the latest `Momentum.apk`.
+2. Download the latest `Momentum.apk` (v1.2.0).
 3. On your Android device, allow installation from unknown sources if prompted (**Settings → Apps → Special app access → Install unknown apps**).
 4. Open the downloaded APK and install.
 
@@ -101,8 +124,6 @@ Requires **Android 5.0 (API 21)** or higher.
 ## 🔒 Privacy
 
 All your data stays **on your device**. Momentum uses no cloud sync, no account, and no internet connection. Everything is stored locally using [Hive](https://pub.dev/packages/hive).
-
----
 
 ---
 
@@ -120,8 +141,8 @@ Everything below is for contributors and developers who want to build or modify 
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-username/momentum.git
-cd momentum
+git clone https://github.com/Shaswata28/Momentum.git
+cd Momentum
 
 # 2. Install dependencies
 flutter pub get
@@ -136,7 +157,7 @@ flutter run
 flutter build apk --release
 ```
 
-The release APK will be at `build/app/outputs/flutter-apk/app-release.apk`.
+The release APK will be at `build/app/outputs/flutter-apk/app-release.apk` (or `Momentum.apk`).
 
 ### Tech Stack
 
@@ -148,84 +169,9 @@ The release APK will be at `build/app/outputs/flutter-apk/app-release.apk`.
 | Notifications | flutter_local_notifications + timezone |
 | Home Widget | home_widget + WorkManager |
 | Charts | fl_chart |
-| Fonts | Google Fonts (DM Sans + JetBrains Mono) |
-
-### Project Structure
-
-```
-lib/
-├── constants/       # Avatar icon list
-├── models/          # Hive data models + generated adapters
-├── providers/       # Riverpod state providers
-├── repositories/    # Hive box access layer
-├── screens/
-│   ├── dashboard/   # Today tab
-│   ├── wallet/      # Wallet tab
-│   ├── insights/    # Insights tab
-│   ├── log/         # EOD log screen
-│   ├── profile/     # Profile & settings
-│   ├── routine/     # Routine builder
-│   └── onboarding/  # First-launch flow
-├── services/        # Notifications, DND, widget sync, health score
-├── theme/           # AppColors, AppTypography
-└── widgets/         # Shared UI components
-
-android/
-└── app/src/main/kotlin/com/example/daily_tracker/
-    ├── MainActivity.kt
-    ├── DailyTrackerWidgetProvider.kt  # RemoteViews home screen widget
-    ├── WidgetRefreshWorker.kt         # WorkManager periodic refresh
-    └── BootReceiver.kt                # Re-schedules worker on boot
-
-packages/
-└── flutter_dnd/     # Local plugin for Do Not Disturb control
-```
-
-### Data Storage
-
-All data is stored locally on-device using Hive. No account, no cloud sync.
-
-| Box | Contents |
-|---|---|
-| `routineTasks` | Weekly routine task templates |
-| `dailyTaskInstances` | Per-day task instances |
-| `eodLogs` | End-of-day performance logs |
-| `transactions` | Wallet income and expense records |
-| `monthSummaries` | Monthly financial rollup |
-| `walletSettings` | Budget limit and semester savings goal |
-| `userSettings` | Name, avatar, first-launch flag |
-| `simple_goals` | Monthly focus goals and habits |
 
 ---
 
-## 🤝 Contributing
+## 📄 License
 
-Contributions are welcome! Here's how to get involved:
-
-1. **Fork** the repository and create your branch from `main`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. **Make your changes** — keep commits focused and descriptive.
-3. **Test** on a real device or emulator before submitting.
-4. **Open a Pull Request** with a clear description of what you changed and why.
-
-### Reporting Bugs
-
-Please [open an issue](../../issues) and include:
-- Your Android version and device model
-- Steps to reproduce the bug
-- What you expected vs. what happened
-- Screenshots or logs if available
-
-### Suggesting Features
-
-Open an issue with the `enhancement` label and describe the feature and the problem it solves.
-
----
-
-
-
-## License
-
-[MIT](LICENSE) © 2026 Shaswata Das
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

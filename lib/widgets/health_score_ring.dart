@@ -27,17 +27,19 @@ class HealthScoreRing extends StatelessWidget {
                 children: [
                   Text(
                     animatedScore.toStringAsFixed(1),
-                    style: AppTypography.displayHeading.copyWith(
-                      fontSize: 28,
+                    style: AppTypography.scoreStat.copyWith(
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     grade,
-                    style: AppTypography.scoreStat.copyWith(
-                      fontSize: 16,
+                    style: AppTypography.displayHeading.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                       color: _gradeColor(grade),
                     ),
                   ),

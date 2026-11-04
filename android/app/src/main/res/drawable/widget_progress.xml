@@ -2,15 +2,15 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@android:id/background">
         <shape>
-            <corners android:radius="2dp" />
-            <solid android:color="#1A1A24" />
+            <corners android:radius="3dp" />
+            <solid android:color="#1F212D" />
         </shape>
     </item>
     <item android:id="@android:id/progress">
         <clip>
             <shape>
-                <corners android:radius="2dp" />
-                <solid android:color="#1A6FE8" />
+                <corners android:radius="3dp" />
+                <solid android:color="#388AF6" />
             </shape>
         </clip>
     </item>

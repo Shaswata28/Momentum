@@ -5,20 +5,23 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../providers/routine_providers.dart';
 import '../../models/routine_task.dart';
-import 'task_editor_sheet.dart';
+import '../../constants/date_constants.dart';
+import 'task_wizard_screen.dart';
 import 'task_block.dart';
 
 class RoutineBuilderScreen extends ConsumerWidget {
   const RoutineBuilderScreen({super.key});
 
-  static const List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const List<String> _days = AppDateConstants.shortDays;
+  static const List<int> _dayIndices = AppDateConstants.weekDaysOrder;
 
   void _openEditor(BuildContext context, {RoutineTask? task, int? initialDay}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => TaskEditorSheet(existingTask: task, initialDay: initialDay),
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskWizardScreen(existingTask: task, initialDay: initialDay),
+      ),
     );
   }
 
@@ -36,58 +39,77 @@ class RoutineBuilderScreen extends ConsumerWidget {
           children: [
             // ── Header ────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          Navigator.pop(context);
+                        },
                         child: Container(
-                          width: 36, height: 36,
+                          width: 38,
+                          height: 38,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161619),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFF1E1E26)),
+                            color: AppColors.cardBackground,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                           ),
-                          child: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 18),
+                          child: Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: AppColors.textPrimary,
+                            size: 16,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Text('Weekly Routine', style: AppTypography.displayHeading),
+                        child: Text(
+                          'Weekly Routine',
+                          style: AppTypography.displayHeading.copyWith(fontSize: 24),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+
                   // Period pill + task count
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF161619),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF1E1E26)),
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                         ),
                         child: Text(
-                          activePeriod?.label ?? 'No active period',
-                          style: AppTypography.bodyText.copyWith(fontSize: 11),
+                          activePeriod?.label ?? 'General Routine',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF161619),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF1E1E26)),
+                          color: AppColors.accentPrimary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.accentPrimary.withValues(alpha: 0.25),
+                          ),
                         ),
                         child: Text(
                           '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'}',
                           style: AppTypography.scoreStat.copyWith(
-                            color: AppColors.accentPrimary, fontSize: 11,
+                            color: AppColors.accentPrimary,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -96,17 +118,18 @@ class RoutineBuilderScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // ── Day columns ───────────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: List.generate(7, (index) {
-                    final dayIndex = index + 1;
+                    final dayIndex = _dayIndices[index];
                     final isToday = dayIndex == todayIndex;
                     final dayTasks = tasks.where((t) => t.daysOfWeek.contains(dayIndex)).toList();
                     dayTasks.sort((a, b) {
@@ -120,33 +143,36 @@ class RoutineBuilderScreen extends ConsumerWidget {
                     });
 
                     return Container(
-                      width: 138,
-                      margin: const EdgeInsets.only(right: 10),
+                      width: 144,
+                      margin: const EdgeInsets.only(right: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Day header
                           Container(
                             alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
                             margin: const EdgeInsets.only(bottom: 10),
                             decoration: BoxDecoration(
                               color: isToday
-                                  ? AppColors.accentPrimary.withValues(alpha: 0.1)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                              border: isToday
-                                  ? Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.3))
-                                  : null,
+                                  ? AppColors.accentPrimary.withValues(alpha: 0.12)
+                                  : AppColors.cardBackground,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isToday
+                                    ? AppColors.accentPrimary.withValues(alpha: 0.35)
+                                    : Colors.white.withValues(alpha: 0.06),
+                              ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 if (isToday) ...[
                                   Container(
-                                    width: 6, height: 6,
+                                    width: 6,
+                                    height: 6,
                                     margin: const EdgeInsets.only(right: 6),
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: AppColors.accentPrimary,
                                     ),
@@ -155,26 +181,39 @@ class RoutineBuilderScreen extends ConsumerWidget {
                                 Text(
                                   _days[index],
                                   style: AppTypography.sectionLabel.copyWith(
-                                    color: isToday ? AppColors.accentPrimary : AppColors.textMuted,
-                                    fontSize: 11,
+                                    color: isToday ? AppColors.accentPrimary : AppColors.textSecondary,
+                                    fontSize: 11.5,
+                                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  '${dayTasks.length}',
-                                  style: AppTypography.sectionLabel.copyWith(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
                                     color: isToday
-                                        ? AppColors.accentPrimary.withValues(alpha: 0.6)
-                                        : const Color(0xFF333340),
-                                    fontSize: 10,
+                                        ? AppColors.accentPrimary.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${dayTasks.length}',
+                                    style: AppTypography.scoreStat.copyWith(
+                                      color: isToday
+                                          ? AppColors.accentPrimary
+                                          : AppColors.textPlaceholder,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
+
                           // Task list
                           Expanded(
                             child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
                               child: Column(
                                 children: [
                                   ...dayTasks.map((t) => TaskBlock(
@@ -182,6 +221,7 @@ class RoutineBuilderScreen extends ConsumerWidget {
                                     onTap: () => _openEditor(context, task: t),
                                   )),
                                   const SizedBox(height: 6),
+
                                   // Add button
                                   GestureDetector(
                                     onTap: () {
@@ -192,13 +232,20 @@ class RoutineBuilderScreen extends ConsumerWidget {
                                       height: 38,
                                       decoration: BoxDecoration(
                                         color: AppColors.cardBackground,
-                                        border: Border.all(color: const Color(0xFF1E1E26)),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.06),
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       alignment: Alignment.center,
-                                      child: const Icon(Icons.add, color: AppColors.accentPrimary, size: 18),
+                                      child: Icon(
+                                        Icons.add_rounded,
+                                        color: AppColors.accentPrimary,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
+                                  const SizedBox(height: 20),
                                 ],
                               ),
                             ),

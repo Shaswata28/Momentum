@@ -1,7 +1,7 @@
 name: momentum
-description: "Momentum — personal daily routine, habit, and finance tracker for Android."
+description: "Momentum â€” personal daily routine, habit, and finance tracker for Android."
 publish_to: none
-version: 1.0.0+1
+version: 1.2.0+2
 
 environment:
   sdk: ^3.11.3
@@ -23,7 +23,7 @@ dependencies:
   flutter_timezone: ^5.0.2
 
   # Home screen widget
-  home_widget: ^0.9.0
+  home_widget: ^0.10.0
 
   # Do Not Disturb (local package)
   flutter_dnd:
@@ -55,6 +55,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon/Momentum_appIcon_Foreground.png
+    - assets/icon/
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:

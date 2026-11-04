@@ -21,14 +21,14 @@ class RoutineHealthScoreService {
     final adhocRescheduled    = adhoc.where((t) => t.status == TaskStatus.rescheduled).length;
     final totalRescheduled    = fixedRescheduled + floatingRescheduled + adhocRescheduled;
 
-    double _ratio(int done, int rescheduled, int total) {
+    double calcRatio(int done, int rescheduled, int total) {
       if (total == 0) return 1.0;
       return (done + rescheduled * 0.5) / total;
     }
 
-    final fixedScore    = _ratio(fixedDone, fixedRescheduled, fixed.length);
-    final floatingScore = _ratio(floatingDone, floatingRescheduled, floating.length);
-    final adhocScore    = _ratio(adhocDone, adhocRescheduled, adhoc.length);
+    final fixedScore    = calcRatio(fixedDone, fixedRescheduled, fixed.length);
+    final floatingScore = calcRatio(floatingDone, floatingRescheduled, floating.length);
+    final adhocScore    = calcRatio(adhocDone, adhocRescheduled, adhoc.length);
 
     // Weights: fixed 55%, floating 30%, adhoc 15%
     // If a category is empty its weight redistributes proportionally

@@ -10,7 +10,6 @@ import '../services/instance_generator_service.dart';
 import '../services/notification_service.dart';
 import '../services/dnd_service.dart';
 import '../services/widget_service.dart';
-import '../services/routine_health_score_service.dart';
 
 final taskInstanceRepositoryProvider = Provider((ref) {
   return DailyTaskInstanceRepository();
@@ -371,30 +370,4 @@ final activeTasksProvider = Provider<List<DailyTaskInstance>>((ref) {
   }
 
   return activeTasks;
-});
-
-final progressProvider = Provider<String>((ref) {
-  final total = ref
-      .watch(todayTasksProvider)
-      .where((t) => !t.isBufferBlock)
-      .length;
-  final done = ref
-      .watch(completedTasksProvider)
-      .where((t) => !t.isBufferBlock)
-      .length;
-  return '$done / $total done';
-});
-
-// Fraction 0.0–1.0 for the progress bar pill
-final progressFractionProvider = Provider<double>((ref) {
-  final tasks = ref.watch(todayTasksProvider).where((t) => !t.isBufferBlock).toList();
-  if (tasks.isEmpty) return 0.0;
-  final done = tasks.where((t) => t.status == TaskStatus.done).length;
-  return done / tasks.length;
-});
-
-// Live health score derived from current task state
-final liveDayScoreProvider = Provider<Map<String, dynamic>>((ref) {
-  final tasks = ref.watch(todayTasksProvider);
-  return RoutineHealthScoreService().calculateDailyScore(tasks);
 });

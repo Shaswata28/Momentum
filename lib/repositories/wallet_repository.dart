@@ -9,8 +9,6 @@ class WalletRepository {
   Box<FixedExpense> get _fixedExpenseBox => Hive.box<FixedExpense>('fixedExpenses');
 
   // Transactions CRUD
-  List<Transaction> getAllTransactions() => _txBox.values.toList();
-  
   List<Transaction> getTransactionsForMonth(String monthId) =>
       _txBox.values.where((t) => t.monthId == monthId).toList();
 
@@ -20,7 +18,13 @@ class WalletRepository {
 
   Future<void> deleteTransaction(String id) async {
     await _txBox.delete(id);
+    final settledId = '${id}_settled';
+    if (_txBox.containsKey(settledId)) {
+      await _txBox.delete(settledId);
+    }
   }
+
+  bool hasSettledCounterpart(String id) => _txBox.containsKey('${id}_settled');
 
   /// Settles an IOU transaction (borrowed or lent).
   /// - Marks the original IOU as settled (isSettled = true).
@@ -33,19 +37,17 @@ class WalletRepository {
 
     // 2. Create the counterpart real transaction
     final now = DateTime.now();
+    final isBorrowed = iou.expenseType == ExpenseType.borrowed;
     final counterpart = Transaction(
       id: newId,
       date: now,
-      direction: iou.expenseType == ExpenseType.borrowed
+      direction: isBorrowed
           ? Direction.expense   // paying back → money out
           : Direction.income,   // received back → money in
       amount: iou.amount,
-      expenseType: iou.expenseType == ExpenseType.borrowed
-          ? ExpenseType.other
-          : null,
-      note: iou.expenseType == ExpenseType.borrowed
-          ? 'Settled: ${iou.note.isEmpty ? "borrowed" : iou.note}'
-          : 'Settled: ${iou.note.isEmpty ? "lent" : iou.note}',
+      expenseType: isBorrowed ? ExpenseType.other : null,
+      incomeSource: isBorrowed ? null : IncomeSource.other,
+      note: 'Settled: ${iou.note.isEmpty ? (isBorrowed ? "borrowed" : "lent") : iou.note}',
       isSettled: true,
       monthId: '${now.year}-${now.month.toString().padLeft(2, '0')}',
     );
@@ -73,17 +75,21 @@ class WalletRepository {
   // Balance computation
   double computeRunningBalance(String monthId) {
     final summary = getMonthSummary(monthId);
-    if (summary == null) return 0.0;
+    final openingBalance = summary?.openingBalance ?? 0.0;
     
     final txs = getTransactionsForMonth(monthId);
     double totalIncome = 0;
     double totalExpense = 0;
 
     for (var tx in txs) {
-       // Skip borrowed & lent — they are IOUs, not real income/expense
-       if (tx.expenseType == ExpenseType.borrowed || tx.expenseType == ExpenseType.lent) {
+       // Legacy fallback: if an IOU was marked settled at entry with no counterpart,
+       // net effect was 0 (money went out and came back in past), so skip.
+       if (tx.isSettled &&
+           (tx.expenseType == ExpenseType.borrowed || tx.expenseType == ExpenseType.lent) &&
+           !hasSettledCounterpart(tx.id)) {
           continue;
        }
+
        if (tx.direction == Direction.income) {
           totalIncome += tx.amount;
        } else if (tx.direction == Direction.expense) {
@@ -91,6 +97,6 @@ class WalletRepository {
        }
     }
     
-    return summary.openingBalance + totalIncome - totalExpense;
+    return openingBalance + totalIncome - totalExpense;
   }
 }

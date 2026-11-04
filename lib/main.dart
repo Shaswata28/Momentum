@@ -6,6 +6,7 @@ import 'screens/main_layout.dart';
 import 'repositories/hive_init.dart';
 import 'services/notification_service.dart';
 import 'services/dnd_service.dart';
+import 'services/focus_blocker_service.dart';
 import 'package:home_widget/home_widget.dart';
 import 'repositories/daily_task_instance_repository.dart';
 import 'services/widget_service.dart';
@@ -13,6 +14,7 @@ import 'services/month_rollover_service.dart';
 import 'models/enums.dart';
 import 'models/daily_task_instance.dart';
 import 'models/user_settings.dart';
+import 'providers/theme_provider.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 
 @pragma('vm:entry-point')
@@ -50,6 +52,7 @@ Future<void> backgroundCallback(Uri? uri) async {
       if (host == 'done') {
         await NotificationService().cancelTaskNotifications(taskId);
       }
+      await NotificationService().cancelLiveTaskNotification();
 
       final updatedTasks = repo.getTasksForDate(DateTime.now());
       await WidgetService.syncWidgetState(updatedTasks);
@@ -64,28 +67,39 @@ void main() async {
 
   final ns = NotificationService();
   await ns.init();
+  await ns.requestPermissions();
   await ns.scheduleEODPrompt();
 
   final dnd = DndService();
   await dnd.init();
   dnd.startMonitoring();
 
+  final focusBlocker = FocusBlockerService();
+  await focusBlocker.init();
+
   await HomeWidget.registerInteractivityCallback(backgroundCallback);
   runApp(const ProviderScope(child: DailyTrackerApp()));
 }
 
-class DailyTrackerApp extends StatelessWidget {
+class DailyTrackerApp extends ConsumerWidget {
   const DailyTrackerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    ref.read(themeModeProvider.notifier).updateSystemBrightness(brightness);
+
     final settingsBox = Hive.box<UserSettings>('userSettings');
     final settings = settingsBox.get('user');
     final isFirstLaunch = settings == null || settings.isFirstLaunch;
 
     return MaterialApp(
       title: 'Momentum',
-      theme: AppTheme.darkTheme,
+      navigatorKey: FocusBlockerService.navigatorKey,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       home: isFirstLaunch ? const OnboardingScreen() : const MainLayout(),
       debugShowCheckedModeBanner: false,
     );
