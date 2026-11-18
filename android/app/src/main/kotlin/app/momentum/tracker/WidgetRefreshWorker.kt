@@ -1,4 +1,4 @@
-package com.example.daily_tracker
+package app.momentum.tracker
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName

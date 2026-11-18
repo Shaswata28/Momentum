@@ -1,4 +1,4 @@
-package com.example.daily_tracker
+package app.momentum.tracker
 
 import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
@@ -28,7 +28,7 @@ import java.util.concurrent.Executors
 class MainActivity : FlutterActivity() {
 
     companion object {
-        const val CHANNEL = "com.example.daily_tracker/focus_blocker"
+        const val CHANNEL = "app.momentum.tracker/focus_blocker"
     }
 
     private var methodChannel: MethodChannel? = null

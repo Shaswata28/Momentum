@@ -1,4 +1,4 @@
-package com.example.daily_tracker
+package app.momentum.tracker
 
 import android.content.BroadcastReceiver
 import android.content.Context

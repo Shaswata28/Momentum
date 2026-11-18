@@ -23,7 +23,7 @@ void main() {
   const channels = [
     'plugins.flutter.io/path_provider',
     'flutter_dnd',
-    'com.example.daily_tracker/focus_blocker',
+    'app.momentum.tracker/focus_blocker',
     'dexterous.com/flutter/local_notifications',
     'flutter_timezone',
     'home_widget',
@@ -70,7 +70,7 @@ void main() {
       return true;
     });
     messenger.setMockMethodCallHandler(
-      const MethodChannel('com.example.daily_tracker/focus_blocker'),
+      const MethodChannel('app.momentum.tracker/focus_blocker'),
       (call) async {
         if (call.method == 'setFocusState')
           shield.add((call.arguments as Map)['isActive'] as bool);

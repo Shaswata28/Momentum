@@ -1,4 +1,4 @@
-package com.example.daily_tracker
+package app.momentum.tracker
 
 import android.app.AlarmManager
 import android.app.PendingIntent

@@ -1,4 +1,4 @@
-package com.example.daily_tracker
+package app.momentum.tracker
 
 import android.accessibilityservice.AccessibilityService
 import android.animation.ValueAnimator

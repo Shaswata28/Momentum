@@ -67,7 +67,7 @@ void main() {
         });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-          const MethodChannel('com.example.daily_tracker/focus_blocker'),
+          const MethodChannel('app.momentum.tracker/focus_blocker'),
           (call) async {
             if (call.method == 'setFocusState') {
               focusStates.add((call.arguments as Map)['isActive'] as bool);

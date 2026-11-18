@@ -13,7 +13,7 @@ class FocusBlockerService {
   FocusBlockerService._internal();
 
   static const MethodChannel _channel = MethodChannel(
-    'com.example.daily_tracker/focus_blocker',
+    'app.momentum.tracker/focus_blocker',
   );
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
