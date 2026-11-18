@@ -3,28 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_typography.dart';
+import '../../../theme/retro_typography.dart';
 import '../../../models/transaction.dart';
+import '../../../models/category_meta.dart';
 import '../../../providers/wallet_providers.dart';
-
-// ── Human-readable labels ─────────────────────────────────────────────────────
-const _typeLabels = {
-  'fixed':     'Recurring Bill',
-  'variable':  'Expense',
-  'borrowed':  'Borrowed',
-  'lent':      'Lent',
-  'transport': 'Transport',
-  'snacks':    'Snacks',
-  'shopping':  'Shopping',
-  'fees':      'Fees',
-  'other':     'Other',
-};
-const _srcLabels = {
-  'tuition':  'Tuition',
-  'freelance': 'Work',
-  'work':     'Work',
-  'gift':     'Gift',
-  'other':    'Other',
-};
+import '../transaction_sheet.dart';
 
 class TransactionRow extends ConsumerWidget {
   final Transaction transaction;
@@ -32,36 +15,9 @@ class TransactionRow extends ConsumerWidget {
 
   IconData _getCategoryIcon() {
     if (transaction.direction == Direction.income) {
-      switch (transaction.incomeSource) {
-        case IncomeSource.tuition:
-          return Icons.school_rounded;
-        case IncomeSource.work:
-        case IncomeSource.freelance:
-          return Icons.work_rounded;
-        case IncomeSource.gift:
-          return Icons.card_giftcard_rounded;
-        default:
-          return Icons.arrow_downward_rounded;
-      }
+      return CategoryMeta.forIncome(transaction.incomeSource).icon;
     } else {
-      switch (transaction.expenseType) {
-        case ExpenseType.transport:
-          return Icons.directions_subway_rounded;
-        case ExpenseType.snacks:
-          return Icons.local_cafe_rounded;
-        case ExpenseType.shopping:
-          return Icons.shopping_bag_rounded;
-        case ExpenseType.fees:
-          return Icons.school_rounded;
-        case ExpenseType.fixed:
-          return Icons.receipt_long_rounded;
-        case ExpenseType.borrowed:
-          return Icons.call_received_rounded;
-        case ExpenseType.lent:
-          return Icons.call_made_rounded;
-        default:
-          return Icons.credit_card_rounded;
-      }
+      return CategoryMeta.forExpense(transaction.expenseType).icon;
     }
   }
 
@@ -71,9 +27,17 @@ class TransactionRow extends ConsumerWidget {
     } else if (transaction.expenseType == ExpenseType.lent) {
       return AppColors.accentPrimary;
     } else if (transaction.direction == Direction.income) {
-      return AppColors.successDone;
+      return CategoryMeta.forIncome(transaction.incomeSource).color;
     } else {
-      return AppColors.warningTag;
+      return CategoryMeta.forExpense(transaction.expenseType).color;
+    }
+  }
+
+  String _getCategoryLabel() {
+    if (transaction.direction == Direction.income) {
+      return CategoryMeta.forIncome(transaction.incomeSource).label;
+    } else {
+      return CategoryMeta.forExpense(transaction.expenseType).label;
     }
   }
 
@@ -87,18 +51,28 @@ class TransactionRow extends ConsumerWidget {
     final bool isPositive = transaction.direction == Direction.income;
     final String prefix = isPositive ? '+' : '-';
 
-    final String categoryName = transaction.expenseType != null
-        ? (_typeLabels[transaction.expenseType!.name] ?? transaction.expenseType!.name)
-        : (_srcLabels[transaction.incomeSource?.name ?? ''] ??
-            transaction.incomeSource?.name ??
-            'General');
+    final String categoryName = _getCategoryLabel();
 
-    final String displayTitle =
-        transaction.note.isEmpty ? categoryName : transaction.note;
+    final String displayTitle = transaction.note.isEmpty
+        ? categoryName
+        : transaction.note;
 
     final bool isUnsettled = isIou && !transaction.isSettled;
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final String dateStr =
         '${transaction.date.day} ${months[transaction.date.month - 1]}';
 
@@ -108,7 +82,7 @@ class TransactionRow extends ConsumerWidget {
         _showActions(context, ref);
       },
       onLongPress: () {
-        HapticFeedback.mediumImpact();
+        HapticFeedback.selectionClick();
         _showActions(context, ref);
       },
       borderRadius: BorderRadius.circular(12),
@@ -116,7 +90,12 @@ class TransactionRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+            bottom: BorderSide(
+              color: AppColors.isRetro
+                  ? AppColors.dividerBorderHover
+                  : Colors.white.withValues(alpha: 0.05),
+              width: AppColors.isRetro ? 1.5 : 1.0,
+            ),
           ),
         ),
         child: Row(
@@ -127,8 +106,15 @@ class TransactionRow extends ConsumerWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: catColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: catColor.withValues(
+                  alpha: AppColors.isRetro ? 0.2 : 0.12,
+                ),
+                borderRadius: AppColors.isRetro
+                    ? BorderRadius.zero
+                    : BorderRadius.circular(10),
+                border: AppColors.isRetro
+                    ? Border.all(color: AppColors.cardBorder, width: 1.5)
+                    : null,
               ),
               child: Icon(_getCategoryIcon(), color: catColor, size: 18),
             ),
@@ -161,7 +147,10 @@ class TransactionRow extends ConsumerWidget {
                       ),
                       if (isUnsettled)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           margin: const EdgeInsets.only(left: 8),
                           decoration: BoxDecoration(
                             color: AppColors.errorAlert.withValues(alpha: 0.12),
@@ -189,24 +178,26 @@ class TransactionRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    transaction.note.isNotEmpty ? '$categoryName · $dateStr' : dateStr,
+                    transaction.note.isNotEmpty
+                        ? '$categoryName · $dateStr'
+                        : dateStr,
                     style: AppTypography.bodyText.copyWith(
                       color: AppColors.textMuted,
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$prefix${currencyFormat.format(transaction.amount)}',
+                    style: AppTypography.scoreStat.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isPositive
+                          ? AppColors.successDone
+                          : AppColors.textPrimary,
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Amount
-            Text(
-              '$prefix${currencyFormat.format(transaction.amount)}',
-              style: AppTypography.scoreStat.copyWith(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isPositive ? AppColors.successDone : AppColors.textPrimary,
               ),
             ),
           ],
@@ -225,15 +216,27 @@ class TransactionRow extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          borderRadius: AppColors.isRetro
+              ? BorderRadius.zero
+              : const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(
+            color: AppColors.isRetro
+                ? AppColors.cardBorder
+                : Colors.white.withValues(alpha: 0.08),
+            width: AppColors.isRetro ? 2.0 : 1.0,
+          ),
         ),
         padding: EdgeInsets.fromLTRB(
-            24, 20, 24, MediaQuery.of(context).padding.bottom + 24),
+          24,
+          20,
+          24,
+          MediaQuery.of(context).padding.bottom + 24,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -245,8 +248,12 @@ class TransactionRow extends ConsumerWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 18),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.isRetro
+                      ? AppColors.cardBorder
+                      : Colors.white.withValues(alpha: 0.2),
+                  borderRadius: AppColors.isRetro
+                      ? BorderRadius.zero
+                      : BorderRadius.circular(2),
                 ),
               ),
             ),
@@ -254,7 +261,8 @@ class TransactionRow extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  width: 8, height: 8,
+                  width: 8,
+                  height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _getCategoryColor(),
@@ -264,7 +272,9 @@ class TransactionRow extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     transaction.note.isEmpty ? 'Transaction' : transaction.note,
-                    style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w600),
+                    style: AppTypography.cardTitle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -279,27 +289,66 @@ class TransactionRow extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
-            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+            Divider(
+              color: AppColors.isRetro
+                  ? AppColors.dividerBorderHover
+                  : Colors.white.withValues(alpha: 0.06),
+              height: 1,
+            ),
             const SizedBox(height: 12),
+
+            // Edit button
+            _ModalOption(
+              icon: Icons.edit_outlined,
+              iconColor: AppColors.accentPrimary,
+              label: 'Edit Transaction',
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => TransactionSheet(
+                    initialIsIncome: transaction.direction == Direction.income,
+                    transactionToEdit: transaction,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
 
             // Settle button
             if (canSettle) ...[
               _ModalOption(
                 icon: Icons.check_circle_outline_rounded,
                 iconColor: AppColors.successDone,
-                label: 'Mark as Settled',
+                label: 'Record repayment today',
                 onTap: () async {
                   Navigator.pop(context);
-                  await ref
-                      .read(walletNotifierProvider.notifier)
-                      .settleTransaction(transaction);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Marked as settled'),
-                        backgroundColor: AppColors.successDone,
-                      ),
-                    );
+                  try {
+                    await ref
+                        .read(walletNotifierProvider.notifier)
+                        .settleTransaction(transaction);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            'Repayment recorded today. The original entry date is unchanged.',
+                          ),
+                          backgroundColor: AppColors.successDone,
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Could not record repayment. Please retry.',
+                          ),
+                        ),
+                      );
                   }
                 },
               ),
@@ -318,28 +367,64 @@ class TransactionRow extends ConsumerWidget {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     backgroundColor: AppColors.cardBackground,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: Text('Delete Transaction', style: AppTypography.headline),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppColors.isRetro
+                          ? BorderRadius.zero
+                          : BorderRadius.circular(16),
+                      side: AppColors.isRetro
+                          ? BorderSide(color: AppColors.cardBorder, width: 2.0)
+                          : BorderSide.none,
+                    ),
+                    title: Text(
+                      'Delete Transaction',
+                      style: AppColors.isRetro
+                          ? RetroTypography.displayHeading.copyWith(fontSize: 14)
+                          : AppTypography.headline,
+                    ),
                     content: Text(
-                      'Are you sure you want to delete this transaction of ${currencyFormat.format(transaction.amount)}?',
-                      style: AppTypography.bodyText,
+                      'Delete this transaction of ${currencyFormat.format(transaction.amount)}? Any linked repayment will also be deleted. This cannot be undone.',
+                      style: AppColors.isRetro
+                          ? RetroTypography.bodyText.copyWith(fontSize: 11)
+                          : AppTypography.bodyText,
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: Text('Cancel', style: AppTypography.buttonLabel.copyWith(color: AppColors.textSecondary)),
+                        child: Text(
+                          'Cancel',
+                          style: AppTypography.buttonLabel.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: Text('Delete', style: AppTypography.buttonLabel.copyWith(color: AppColors.errorAlert)),
+                        child: Text(
+                          'Delete',
+                          style: AppTypography.buttonLabel.copyWith(
+                            color: AppColors.errorAlert,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 );
                 if (confirmed == true) {
-                  await ref
-                      .read(walletNotifierProvider.notifier)
-                      .deleteTransaction(transaction.id);
+                  HapticFeedback.mediumImpact();
+                  try {
+                    await ref
+                        .read(walletNotifierProvider.notifier)
+                        .deleteTransaction(transaction.id);
+                  } catch (_) {
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Could not delete transaction. Please retry.',
+                          ),
+                        ),
+                      );
+                  }
                 }
               },
             ),
@@ -367,24 +452,58 @@ class _ModalOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isDestructive ? AppColors.errorAlert.withValues(alpha: 0.08) : AppColors.elevatedSurface,
-          borderRadius: BorderRadius.circular(12),
+          color: isDestructive
+              ? (isRetro
+                  ? AppColors.errorAlert.withValues(alpha: 0.15)
+                  : AppColors.errorAlert.withValues(alpha: 0.08))
+              : (isRetro
+                  ? AppColors.cardBackground
+                  : AppColors.elevatedSurface),
+          borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(12),
+          border: isRetro
+              ? Border.all(
+                  color: isDestructive ? AppColors.errorAlert : AppColors.cardBorder,
+                  width: 1.5,
+                )
+              : null,
+          boxShadow: isRetro
+              ? [
+                  BoxShadow(
+                    color: AppColors.retroShadowColor,
+                    offset: const Offset(2, 2),
+                    blurRadius: 0,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
             Icon(icon, color: iconColor, size: 20),
             const SizedBox(width: 14),
-            Text(
-              label,
-              style: AppTypography.buttonLabel.copyWith(
-                color: isDestructive ? AppColors.errorAlert : AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                label,
+                style: isRetro
+                    ? RetroTypography.buttonLabel.copyWith(
+                        color: isDestructive
+                            ? AppColors.errorAlert
+                            : AppColors.textPrimary,
+                        fontSize: 10,
+                      )
+                    : AppTypography.buttonLabel.copyWith(
+                        color: isDestructive
+                            ? AppColors.errorAlert
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
               ),
             ),
           ],

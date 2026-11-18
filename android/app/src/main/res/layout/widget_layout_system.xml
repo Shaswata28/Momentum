@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A distinct layout forces reinflation when leaving an explicit theme,
+     clearing RemoteViews color overrides so day/night XML colors take over. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <include layout="@layout/widget_layout" />
+</FrameLayout>

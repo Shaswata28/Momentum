@@ -7,13 +7,17 @@ import '../../models/user_settings.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../theme/retro_typography.dart';
 import '../../constants/avatar_icons.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/action_button.dart';
+import '../../widgets/app_back_button.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../routine/routine_builder_screen.dart';
 import '../wallet/wallet_settings_sheet.dart';
 import 'help_screen.dart';
 import 'app_blocker_settings_screen.dart';
+import 'legal_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -22,17 +26,40 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with WidgetsBindingObserver {
   late int _avatarIndex;
   late String _displayName;
   TimeOfDay _eodTime = const TimeOfDay(hour: 22, minute: 30);
+  bool _savingReminder = false;
+  bool? _reminderScheduled;
 
   @override
   void initState() {
     super.initState();
-    final settings = Hive.box<UserSettings>('userSettings').get('user') ?? UserSettings();
+    WidgetsBinding.instance.addObserver(this);
+    final settings =
+        Hive.box<UserSettings>('userSettings').get('user') ?? UserSettings();
     _avatarIndex = settings.avatarIndex;
     _displayName = settings.firstName.isEmpty ? 'You' : settings.firstName;
+    _eodTime = NotificationService().savedEODReminder;
+    _refreshReminder();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshReminder();
+  }
+
+  Future<void> _refreshReminder() async {
+    final scheduled = await NotificationService().scheduleEODPrompt();
+    if (mounted) setState(() => _reminderScheduled = scheduled);
   }
 
   String _formatEodTime() {
@@ -63,7 +90,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _openEditRoutine() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const RoutineBuilderScreen()),
@@ -81,6 +108,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _openNotificationsModal() async {
+    if (_savingReminder) return;
     HapticFeedback.selectionClick();
     final picked = await showTimePicker(
       context: context,
@@ -98,50 +126,82 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
     if (picked != null && mounted) {
-      await NotificationService().rescheduleEODPrompt(picked);
-      setState(() => _eodTime = picked);
-      if (mounted) {
+      setState(() => _savingReminder = true);
+      try {
+        final scheduled = await NotificationService().saveEODReminder(picked);
+        if (!mounted) return;
+        setState(() {
+          _eodTime = picked;
+          _reminderScheduled = scheduled;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('EOD reminder scheduled for ${picked.format(context)}', style: AppTypography.bodyText),
-            backgroundColor: AppColors.successDone,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            content: Text(
+              scheduled
+                  ? 'Daily reminder scheduled for ${picked.format(context)}'
+                  : 'Time saved. Notifications are denied or unavailable; reminder is not active.',
+            ),
           ),
         );
+      } catch (_) {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not save reminder. Please try again.'),
+            ),
+          );
+      } finally {
+        if (mounted) setState(() => _savingReminder = false);
       }
     }
   }
 
   Future<void> _wipeData() async {
-    HapticFeedback.heavyImpact();
+    HapticFeedback.selectionClick();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppColors.isRetro
+              ? BorderRadius.zero
+              : BorderRadius.circular(18),
+        ),
         title: Text(
           'Wipe all data?',
           style: AppTypography.displayHeading.copyWith(fontSize: 18),
         ),
         content: Text(
           'This will permanently delete all tasks, logs, wallet transactions, and preferences. This action cannot be undone.',
-          style: AppTypography.bodyText.copyWith(color: AppColors.textSecondary),
+          style: AppTypography.bodyText.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: AppTypography.buttonLabel.copyWith(color: AppColors.textMuted)),
+            child: Text(
+              'Cancel',
+              style: AppTypography.buttonLabel.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Wipe Everything', style: AppTypography.buttonLabel.copyWith(color: AppColors.errorAlert)),
+            child: Text(
+              'Wipe Everything',
+              style: AppTypography.buttonLabel.copyWith(
+                color: AppColors.errorAlert,
+              ),
+            ),
           ),
         ],
       ),
     );
 
     if (confirmed == true && mounted) {
+      HapticFeedback.heavyImpact();
       await Hive.deleteFromDisk();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -160,8 +220,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return AlertDialog(
           backgroundColor: AppColors.cardBackground,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            borderRadius: AppColors.isRetro
+                ? BorderRadius.zero
+                : BorderRadius.circular(18),
+            side: BorderSide(color: AppColors.cardBorder),
           ),
           title: Row(
             children: [
@@ -170,7 +232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 height: 32,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(color: AppColors.subtleBorder),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(7),
@@ -179,29 +241,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: AppColors.accentPrimary.withValues(alpha: 0.15),
-                      child: Icon(Icons.flash_on_rounded, size: 20, color: AppColors.accentPrimary),
+                      child: Icon(
+                        Icons.flash_on_rounded,
+                        size: 20,
+                        color: AppColors.accentPrimary,
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Text('Momentum', style: AppTypography.displayHeading.copyWith(fontSize: 20)),
+              Text(
+                'Momentum',
+                style: AppTypography.displayHeading.copyWith(
+                  fontSize: AppColors.isRetro ? 16 : 20,
+                ),
+              ),
             ],
           ),
           content: Text(
-            'Momentum is a calm personal Life OS designed to help you build consistent routines, track daily finances, and keep long-term momentum going without cognitive clutter.\n\nVersion 1.0.0',
+            'Momentum is a calm personal Life OS designed to help you build consistent routines, track daily finances, and keep long-term momentum going without cognitive clutter.\n\n100% offline-first, local-only, and zero trackers.\n\nVersion 2.0.0',
             style: AppTypography.bodyText.copyWith(
               color: AppColors.textSecondary,
               height: 1.5,
-              fontSize: 14,
+              fontSize: AppColors.isRetro ? 11 : 13.5,
             ),
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalScreen(doc: LegalDoc.privacy),
+                  ),
+                );
+              },
+              child: const Text('Privacy'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LegalScreen(doc: LegalDoc.terms),
+                  ),
+                );
+              },
+              child: const Text('Terms'),
+            ),
+            TextButton(
+              onPressed: () => showLicensePage(
+                context: context,
+                applicationName: 'Momentum',
+              ),
+              child: const Text('Licenses'),
+            ),
+            TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Close',
-                style: AppTypography.buttonLabel.copyWith(color: AppColors.accentPrimary),
+                style: AppTypography.buttonLabel.copyWith(
+                  color: AppColors.accentPrimary,
+                ),
               ),
             ),
           ],
@@ -225,28 +329,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Row(
                 children: [
                   if (Navigator.canPop(context))
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        margin: const EdgeInsets.only(right: 14),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBackground,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.cardBorder),
-                        ),
-                        child: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: AppColors.textPrimary,
-                          size: 16,
-                        ),
+                    const AppBackButton(
+                      margin: EdgeInsets.only(right: 14),
+                    ),
+                  Expanded(
+                    child: Text(
+                      'Settings',
+                      style: AppTypography.displayHeading.copyWith(
+                        fontSize: AppColors.isRetro ? 14 : 28,
                       ),
                     ),
-                  Text('Settings', style: AppTypography.displayHeading.copyWith(fontSize: 28)),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -255,14 +348,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.cardBorder),
+                  borderRadius: AppColors.isRetro
+                      ? BorderRadius.zero
+                      : BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.cardBorder,
+                    width: AppColors.isRetro ? 2.0 : 1.0,
+                  ),
+                  boxShadow: AppColors.isRetro
+                      ? [
+                          BoxShadow(
+                            color: AppColors.retroShadowColor,
+                            offset: const Offset(3, 3),
+                            blurRadius: 0,
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: _openEditProfileSheet,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: AppColors.isRetro
+                        ? BorderRadius.zero
+                        : BorderRadius.circular(18),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -272,9 +381,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             height: 58,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.accentPrimary.withValues(alpha: 0.15),
+                              color: AppColors.accentPrimary.withValues(
+                                alpha: 0.15,
+                              ),
                               border: Border.all(
-                                color: AppColors.accentPrimary.withValues(alpha: 0.4),
+                                color: AppColors.accentPrimary.withValues(
+                                  alpha: 0.4,
+                                ),
                                 width: 1.5,
                               ),
                             ),
@@ -335,9 +448,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: Icons.notifications_active_rounded,
                   iconColor: AppColors.floatingTask,
                   title: 'EOD Reminder Time',
-                  subtitle: 'Daily at ${_formatEodTime()}',
-                  onTap: _openNotificationsModal,
+                  subtitle: _savingReminder
+                      ? 'Saving reminder...'
+                      : 'Daily at ${_formatEodTime()}\n${_reminderScheduled == true
+                            ? 'Reminder active'
+                            : _reminderScheduled == null
+                            ? 'Checking notifications...'
+                            : 'Time saved; notifications denied or unavailable'}',
+                  onTap: _savingReminder ? null : _openNotificationsModal,
                 ),
+                if (_reminderScheduled == false)
+                  _SettingsTile(
+                    icon: Icons.notifications_outlined,
+                    iconColor: AppColors.accentPrimary,
+                    title: 'Allow notifications',
+                    subtitle:
+                        'Android notification settings may need permission',
+                    onTap: () async {
+                      await NotificationService().requestPermissions();
+                      await _refreshReminder();
+                    },
+                  ),
               ]),
 
               const SizedBox(height: 24),
@@ -354,7 +485,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     HapticFeedback.lightImpact();
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AppBlockerSettingsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const AppBlockerSettingsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -409,16 +542,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: Icons.code_rounded,
                   iconColor: AppColors.textMuted,
                   title: 'App Version',
-                  subtitle: '1.0.0',
+                  subtitle: '2.0.0',
                   showChevron: false,
                 ),
               ]),
 
               const SizedBox(height: 24),
 
-              // ── Group 5: Danger Zone ────────────────────────────────────
+              // ── Group 5: Data & Privacy ────────────────────────────────
               _buildSectionLabel('DATA & PRIVACY'),
               _buildGroupedCard([
+                _SettingsTile(
+                  icon: Icons.shield_outlined,
+                  iconColor: AppColors.successDone,
+                  title: 'Privacy Policy',
+                  subtitle: '100% offline-first · Zero data collected',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LegalScreen(doc: LegalDoc.privacy),
+                      ),
+                    );
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.description_outlined,
+                  iconColor: AppColors.accentPrimary,
+                  title: 'Terms of Service',
+                  subtitle: 'Usage guidelines & offline disclaimer',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LegalScreen(doc: LegalDoc.terms),
+                      ),
+                    );
+                  },
+                ),
                 _SettingsTile(
                   icon: Icons.delete_forever_rounded,
                   iconColor: AppColors.errorAlert,
@@ -446,13 +609,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     InkWell(
                       borderRadius: BorderRadius.circular(6),
                       onTap: () async {
-                        final Uri url = Uri.parse('https://github.com/Shaswata28');
+                        final Uri url = Uri.parse(
+                          'https://github.com/Shaswata28',
+                        );
                         if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 16,
+                        ),
                         child: Text(
                           '@Shaswata28',
                           style: AppTypography.bodyText.copyWith(
@@ -489,25 +660,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildThemeSelector() {
     final currentMode = ref.watch(themeModeProvider);
-
-    final options = [
-      (mode: ThemeMode.system, label: 'System', icon: Icons.brightness_auto_rounded),
-      (mode: ThemeMode.dark, label: 'Dark', icon: Icons.dark_mode_rounded),
-      (mode: ThemeMode.light, label: 'Light', icon: Icons.light_mode_rounded),
-    ];
+    final isRetro = currentMode.isRetro;
+    final isDark = (currentMode == AppThemeMode.system)
+        ? AppColors.isDark
+        : currentMode.isDark;
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        borderRadius: AppColors.isRetro
+            ? BorderRadius.zero
+            : BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.cardBorder,
+          width: AppColors.isRetro ? 2.0 : 1.0,
+        ),
+        boxShadow: AppColors.isRetro
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(3, 3),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Row(
               children: [
                 Icon(
@@ -516,76 +700,254 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   color: AppColors.accentPrimary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Theme Mode',
-                  style: AppTypography.cardTitle.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Text(
+                    'Theme & Appearance',
+                    style: isRetro
+                        ? RetroTypography.titleLarge.copyWith(fontSize: 11)
+                        : AppTypography.cardTitle.copyWith(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Container(
-            height: 42,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: AppColors.inputBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.subtleBorder),
+          const SizedBox(height: 14),
+
+          // ── THEME (Classic | Retro) ───────────────────────────────────
+          _buildThemeSectionLabel('THEME', Icons.brush_rounded),
+          const SizedBox(height: 8),
+          _buildSegmentedToggle(
+            options: [
+              (
+                label: 'Classic',
+                icon: Icons.auto_awesome_rounded,
+                isSelected: !isRetro,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).setRetro(false);
+                },
+              ),
+              (
+                label: 'Retro',
+                icon: Icons.videogame_asset_rounded,
+                isSelected: isRetro,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).setRetro(true);
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── APPEARANCE (Light | Dark) ─────────────────────────────────
+          _buildThemeSectionLabel('APPEARANCE', Icons.contrast_rounded),
+          const SizedBox(height: 8),
+          _buildSegmentedToggle(
+            options: [
+              (
+                label: 'Light',
+                icon: Icons.light_mode_rounded,
+                isSelected: !isDark && currentMode != AppThemeMode.system,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).setDark(false);
+                },
+              ),
+              (
+                label: 'Dark',
+                icon: Icons.dark_mode_rounded,
+                isSelected: isDark && currentMode != AppThemeMode.system,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(themeModeProvider.notifier).setDark(true);
+                },
+              ),
+            ],
+          ),
+          if (!isRetro)
+            Material(
+              color: AppColors.cardBackground,
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Use device appearance',
+                  style: AppTypography.bodyText,
+                ),
+                value: currentMode == AppThemeMode.system,
+                activeColor: AppColors.accentPrimary,
+                onChanged: (value) => ref
+                    .read(themeModeProvider.notifier)
+                    .setThemeMode(
+                      value == true
+                          ? AppThemeMode.system
+                          : (AppColors.isDark
+                                ? AppThemeMode.dark
+                                : AppThemeMode.light),
+                    ),
+              ),
             ),
-            child: Row(
-              children: options.map((opt) {
-                final isSelected = currentMode == opt.mode;
-                return Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      ref.read(themeModeProvider.notifier).setThemeMode(opt.mode);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accentPrimary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(9),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.accentPrimary.withValues(alpha: 0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      alignment: Alignment.center,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentedToggle({
+    required List<
+      ({String label, IconData icon, bool isSelected, VoidCallback onTap})
+    >
+    options,
+  }) {
+    final isRetroMode = AppColors.isRetro;
+
+    return Container(
+      height: isRetroMode ? 38 : 42,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: isRetroMode
+            ? BorderRadius.zero
+            : BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.cardBorder,
+          width: isRetroMode ? 2.0 : 1.0,
+        ),
+        boxShadow: isRetroMode
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(2, 2),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        children: options.map((opt) {
+          final isSelected = opt.isSelected;
+
+          return Expanded(
+            child: Semantics(
+              button: true,
+              selected: isSelected,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: opt.onTap,
+                child: AnimatedContainer(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (isRetroMode
+                            ? AppColors.accentPrimary.withValues(
+                                alpha: AppColors.isDark ? 0.28 : 0.20,
+                              )
+                            : AppColors.accentPrimary.withValues(alpha: 0.15))
+                        : Colors.transparent,
+                    borderRadius: isRetroMode
+                        ? BorderRadius.zero
+                        : BorderRadius.circular(8),
+                    border: isSelected
+                        ? Border.all(
+                            color: isRetroMode
+                                ? AppColors.accentPrimary
+                                : AppColors.accentPrimary.withValues(alpha: 0.6),
+                            width: isRetroMode ? 1.5 : 1.0,
+                          )
+                        : Border.all(
+                            color: Colors.transparent,
+                            width: isRetroMode ? 1.5 : 1.0,
+                          ),
+                    boxShadow: (isRetroMode && isSelected)
+                        ? [
+                            BoxShadow(
+                              color: AppColors.retroShadowColor,
+                              offset: const Offset(1, 1),
+                              blurRadius: 0,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             opt.icon,
-                            size: 15,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                            size: isRetroMode ? 13 : 15,
+                            color: isSelected
+                                ? AppColors.accentPrimary
+                                : (isRetroMode
+                                    ? AppColors.textMuted
+                                    : AppColors.textSecondary),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Text(
-                            opt.label,
-                            style: AppTypography.buttonLabel.copyWith(
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
-                              fontSize: 12.5,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                            ),
+                            isRetroMode ? opt.label.toUpperCase() : opt.label,
+                            style: isRetroMode
+                                ? RetroTypography.buttonLabel.copyWith(
+                                    fontSize: 8.5,
+                                    color: isSelected
+                                        ? AppColors.accentPrimary
+                                        : AppColors.textMuted,
+                                  )
+                                : AppTypography.buttonLabel.copyWith(
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? AppColors.accentPrimary
+                                        : AppColors.textSecondary,
+                                  ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
+    );
+  }
+
+  /// Small inline section header used inside the theme selector card.
+  Widget _buildThemeSectionLabel(String label, IconData icon) {
+    final isRetro = AppColors.isRetro;
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: AppColors.textPlaceholder),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: isRetro
+              ? RetroTypography.overline.copyWith(
+                  fontSize: 7.5,
+                  color: AppColors.textPlaceholder,
+                  letterSpacing: 0.8,
+                )
+              : AppTypography.overline.copyWith(
+                  fontSize: 9.5,
+                  color: AppColors.textPlaceholder,
+                  letterSpacing: 0.9,
+                  fontWeight: FontWeight.w700,
+                ),
+        ),
+      ],
     );
   }
 
@@ -593,11 +955,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        borderRadius: AppColors.isRetro
+            ? BorderRadius.zero
+            : BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.cardBorder,
+          width: AppColors.isRetro ? 2.0 : 1.0,
+        ),
+        boxShadow: AppColors.isRetro
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(3, 3),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppColors.isRetro
+            ? BorderRadius.zero
+            : BorderRadius.circular(16),
         child: Column(
           children: [
             for (int i = 0; i < tiles.length; i++) ...[
@@ -605,7 +983,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (i < tiles.length - 1)
                 Divider(
                   height: 1,
-                  thickness: 1,
+                  thickness: AppColors.isRetro ? 2 : 1,
                   color: AppColors.dividerBorderHover,
                   indent: 58,
                 ),
@@ -717,6 +1095,7 @@ class _EditProfileSheet extends StatefulWidget {
 class _EditProfileSheetState extends State<_EditProfileSheet> {
   late final TextEditingController _nameCtrl;
   late int _selected;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -732,134 +1111,168 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   }
 
   Future<void> _save() async {
-    HapticFeedback.mediumImpact();
-    final box = Hive.box<UserSettings>('userSettings');
-    final current = box.get('user') ?? UserSettings();
-    await box.put(
-      'user',
-      UserSettings(
-        firstName: _nameCtrl.text.trim(),
-        avatarIndex: _selected,
-        isFirstLaunch: current.isFirstLaunch,
-        hasSeenCoachMarks: current.hasSeenCoachMarks,
-      ),
-    );
-    widget.onSaved(_nameCtrl.text.trim(), _selected);
-    if (mounted) Navigator.pop(context);
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      HapticFeedback.mediumImpact();
+      final box = Hive.box<UserSettings>('userSettings');
+      final current = box.get('user') ?? UserSettings();
+      await box.put(
+        'user',
+        UserSettings(
+          firstName: _nameCtrl.text.trim(),
+          avatarIndex: _selected,
+          isFirstLaunch: current.isFirstLaunch,
+          hasSeenCoachMarks: current.hasSeenCoachMarks,
+        ),
+      );
+      if (!mounted) return;
+      widget.onSaved(_nameCtrl.text.trim(), _selected);
+      Navigator.pop(context);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save profile. Please try again.'),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        18,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 28,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
+    return SingleChildScrollView(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: AppColors.isRetro
+              ? BorderRadius.zero
+              : const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          18,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.subtleBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Edit Profile',
+              style: AppTypography.displayHeading.copyWith(
+                fontSize: AppColors.isRetro ? 16 : 20,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'FIRST NAME',
+              style: AppTypography.sectionLabel.copyWith(
+                fontSize: 11,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(2),
+                color: AppColors.appBackground,
+                borderRadius: AppColors.isRetro
+                    ? BorderRadius.zero
+                    : BorderRadius.circular(12),
+                border: Border.all(color: AppColors.subtleBorder),
               ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text('Edit Profile', style: AppTypography.displayHeading.copyWith(fontSize: 20)),
-          const SizedBox(height: 20),
-          Text(
-            'FIRST NAME',
-            style: AppTypography.sectionLabel.copyWith(fontSize: 11, letterSpacing: 1.0),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.appBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.subtleBorder),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-            child: TextField(
-              controller: _nameCtrl,
-              style: AppTypography.cardTitle.copyWith(color: AppColors.textPrimary),
-              cursorColor: AppColors.accentPrimary,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Your name',
-                hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'AVATAR',
-            style: AppTypography.sectionLabel.copyWith(fontSize: 11, letterSpacing: 1.0),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: List.generate(kAvatarIcons.length, (i) {
-              final sel = _selected == i;
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _selected = i);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: sel
-                        ? AppColors.accentPrimary.withValues(alpha: 0.18)
-                        : AppColors.appBackground,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: sel
-                          ? AppColors.accentPrimary
-                          : Colors.white.withValues(alpha: 0.08),
-                      width: sel ? 2 : 1,
-                    ),
-                  ),
-                  child: Icon(
-                    kAvatarIcons[i],
-                    color: sel ? AppColors.accentPrimary : AppColors.textMuted,
-                    size: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: TextField(
+                controller: _nameCtrl,
+                style: AppTypography.cardTitle.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+                cursorColor: AppColors.accentPrimary,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Your name',
+                  hintStyle: AppTypography.bodyText.copyWith(
+                    color: AppColors.textPlaceholder,
                   ),
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 26),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: Text(
-                'Save Changes',
-                style: AppTypography.buttonLabel.copyWith(color: Colors.white),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            Text(
+              'AVATAR',
+              style: AppTypography.sectionLabel.copyWith(
+                fontSize: 11,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: List.generate(kAvatarIcons.length, (i) {
+                final sel = _selected == i;
+                return Semantics(
+                  button: true,
+                  selected: sel,
+                  label: 'Avatar ${i + 1}',
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selected = i);
+                    },
+                    child: AnimatedContainer(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: sel
+                            ? AppColors.accentPrimary.withValues(alpha: 0.18)
+                            : AppColors.appBackground,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: sel
+                              ? AppColors.accentPrimary
+                              : AppColors.subtleBorder,
+                          width: sel ? 2 : 1,
+                        ),
+                      ),
+                      child: Icon(
+                        kAvatarIcons[i],
+                        color: sel
+                            ? AppColors.accentPrimary
+                            : AppColors.textMuted,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 26),
+            ActionButton(
+              label: 'Save Changes',
+              isPrimary: true,
+              isLoading: _saving,
+              onTap: _saving ? null : _save,
+            ),
+          ],
+        ),
       ),
     );
   }

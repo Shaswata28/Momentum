@@ -1,16 +1,17 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../providers/theme_provider.dart';
+import '../providers/review_providers.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'wallet/wallet_screen.dart';
 import 'insights/insights_screen.dart';
-import '../repositories/eod_log_repository.dart';
-import '../repositories/daily_task_instance_repository.dart';
-import '../services/widget_service.dart';
+import '../services/month_rollover_service.dart';
 import '../services/notification_service.dart';
 import '../providers/dashboard_providers.dart';
 
@@ -21,45 +22,76 @@ class MainLayout extends ConsumerStatefulWidget {
   ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends ConsumerState<MainLayout> {
+class _MainLayoutState extends ConsumerState<MainLayout>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
-
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const WalletScreen(),
-    const InsightsScreen(),
-  ];
-
-  Timer? _liveTaskTimer;
+  StreamSubscription<Uri?>? _widgetClicks;
+  bool _refreshing = false;
+  DateTime? _lastRefreshDate;
 
   @override
   void initState() {
     super.initState();
-    HomeWidget.widgetClicked.listen((Uri? uri) => _handleWidgetClick(uri));
-    HomeWidget.initiallyLaunchedFromHomeWidget().then((Uri? uri) {
-       if (uri != null) _handleWidgetClick(uri);
-    });
+    WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _initializeHomeWidget();
+    }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await NotificationService().requestPermissions();
-      NotificationService.onForegroundAction = () {
-        ref.read(todayTasksProvider.notifier).loadTodayTasks();
-      };
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshLiveState();
     });
-
-    _syncLiveTask();
-    _liveTaskTimer = Timer.periodic(const Duration(minutes: 1), (_) => _syncLiveTask());
   }
 
-  void _syncLiveTask() {
-    final repo = DailyTaskInstanceRepository();
-    final tasks = repo.getTasksForDate(DateTime.now());
-    WidgetService.syncWidgetState(tasks);
+  Future<void> _initializeHomeWidget() async {
+    try {
+      final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (!mounted) return;
+      _widgetClicks = HomeWidget.widgetClicked.listen(
+        _handleWidgetClick,
+        onError: (Object error) =>
+            debugPrint('Widget click unavailable: $error'),
+      );
+      if (uri != null) _handleWidgetClick(uri);
+    } on MissingPluginException catch (error) {
+      debugPrint('Home widget unavailable: $error');
+    } on PlatformException catch (error) {
+      debugPrint('Home widget unavailable: $error');
+    }
+  }
+
+  Future<void> _refreshLiveState() async {
+    if (_refreshing || !mounted) return;
+    _refreshing = true;
+    try {
+      final now = DateUtils.dateOnly(DateTime.now());
+      if (_lastRefreshDate != now) {
+        await MonthRolloverService().checkAndRollover();
+        _lastRefreshDate = now;
+      }
+      if (mounted) await ref.read(todayTasksProvider.notifier).loadTodayTasks();
+    } catch (error) {
+      debugPrint('Live task refresh failed: $error');
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(localTimeProvider);
+      _refreshLiveState();
+      NotificationService().scheduleEODPrompt().catchError((Object error) {
+        debugPrint('Reminder refresh failed: $error');
+        return false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _liveTaskTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _widgetClicks?.cancel();
     super.dispose();
   }
 
@@ -68,6 +100,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       final taskId = uri.queryParameters['taskId'];
       if (taskId != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
           final now = DateTime.now();
           final picked = await showDatePicker(
             context: context,
@@ -77,7 +110,20 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
             helpText: 'RESCHEDULE TASK',
           );
           if (picked != null && mounted) {
-            ref.read(todayTasksProvider.notifier).rescheduleTask(taskId, picked);
+            try {
+              await ref
+                  .read(todayTasksProvider.notifier)
+                  .rescheduleTask(taskId, picked);
+            } catch (_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Could not reschedule the task. Please try again.',
+                  ),
+                ),
+              );
+            }
           }
         });
       }
@@ -86,16 +132,27 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final repo = EODLogRepository();
-    final hasTodayLog = repo.getAllLogs().any((l) =>
-        l.date.year == now.year &&
-        l.date.month == now.month &&
-        l.date.day == now.day);
+    // Watch theme so this widget rebuilds whenever the theme changes.
+    // Each screen gets a ValueKey tied to the active theme name so that
+    // Flutter discards the old State and creates a fresh one — instantly
+    // reflecting the new AppColors / AppTypography without needing a restart.
+    final themeMode = ref.watch(themeModeProvider);
+    ref.listen(localTimeProvider, (_, next) {
+      if (next.hasValue) _refreshLiveState();
+    });
+    final now = ref.watch(localTimeProvider).valueOrNull ?? DateTime.now();
+    final hasTodayLog = ref.watch(todayReviewProvider) != null;
     final showEodBadge = !hasTodayLog && now.hour >= 21;
 
+    final screens = [
+      DashboardScreen(key: ValueKey('dashboard_${themeMode.name}')),
+      WalletScreen(key: ValueKey('wallet_${themeMode.name}')),
+      InsightsScreen(key: ValueKey('insights_${themeMode.name}')),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex],
+      backgroundColor: AppColors.appBackground,
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: _MomentumNavBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
@@ -112,20 +169,45 @@ class _MomentumNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
   final bool showEodBadge;
 
-  const _MomentumNavBar({required this.currentIndex, required this.onTap, required this.showEodBadge});
+  const _MomentumNavBar({
+    required this.currentIndex,
+    required this.onTap,
+    required this.showEodBadge,
+  });
 
   static const _items = [
-    (icon: Icons.dashboard_outlined,          activeIcon: Icons.dashboard_rounded,          label: 'Today'),
-    (icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet_rounded, label: 'Wallet'),
-    (icon: Icons.insights_outlined,           activeIcon: Icons.insights_rounded,           label: 'Insights'),
+    (
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard_rounded,
+      label: 'Today',
+    ),
+    (
+      icon: Icons.account_balance_wallet_outlined,
+      activeIcon: Icons.account_balance_wallet_rounded,
+      label: 'Wallet',
+    ),
+    (
+      icon: Icons.insights_outlined,
+      activeIcon: Icons.insights_rounded,
+      label: 'Insights',
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.appBackground,
-        border: Border(top: BorderSide(color: AppColors.dividerBorderHover, width: 1)),
+        color: AppColors.cardBackground,
+        border: Border(
+          top: BorderSide(
+            color: isRetro
+                ? AppColors.cardBorder
+                : AppColors.dividerBorderHover,
+            width: isRetro ? 2.0 : 1.0,
+          ),
+        ),
       ),
       padding: EdgeInsets.only(
         top: 8,
@@ -136,59 +218,87 @@ class _MomentumNavBar extends StatelessWidget {
           final item = _items[i];
           final active = currentIndex == i;
           return Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onTap(i);
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Animated pill indicator
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutCubic,
-                    height: 3,
-                    width: active ? 20 : 0,
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentPrimary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(
-                        active ? item.activeIcon : item.icon,
-                        color: active ? AppColors.accentPrimary : AppColors.textPlaceholder,
-                        size: 22,
-                      ),
-                      if (i == 2 && showEodBadge)
-                        Positioned(
-                          top: -2,
-                          right: -4,
-                          child: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.warningTag,
-                            ),
+            child: Semantics(
+              button: true,
+              selected: active,
+              label: item.label,
+              hint: i == 2 && showEodBadge ? 'Day review available' : null,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onTap(i);
+                },
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: ExcludeSemantics(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Animated pill indicator
+                        AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                          height: isRetro ? 3.5 : 3.0,
+                          width: active ? (isRetro ? 24.0 : 20.0) : 0.0,
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentPrimary,
+                            borderRadius: isRetro
+                                ? BorderRadius.zero
+                                : BorderRadius.circular(2),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: AppTypography.navLabel.copyWith(
-                      color: active ? AppColors.accentPrimary : AppColors.textPlaceholder,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              active ? item.activeIcon : item.icon,
+                              color: active
+                                  ? AppColors.accentPrimary
+                                  : AppColors.textPlaceholder,
+                              size: 22,
+                            ),
+                            if (i == 2 && showEodBadge)
+                              Positioned(
+                                top: -2,
+                                right: -4,
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    shape: isRetro
+                                        ? BoxShape.rectangle
+                                        : BoxShape.circle,
+                                    color: AppColors.warningTag,
+                                    border: isRetro
+                                        ? Border.all(
+                                            color: AppColors.cardBorder,
+                                            width: 1.0,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          style: AppTypography.navLabel.copyWith(
+                            color: active
+                                ? AppColors.accentPrimary
+                                : AppColors.textPlaceholder,
+                            fontWeight: active
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           );

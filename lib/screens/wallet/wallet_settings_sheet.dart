@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_typography.dart';
-import '../../../models/wallet_settings.dart';
-import '../../../models/month_summary.dart';
-import '../../../providers/wallet_providers.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
+import '../../models/wallet_settings.dart';
+import '../../models/month_summary.dart';
+import '../../providers/wallet_providers.dart';
 
 class WalletSettingsSheet extends ConsumerStatefulWidget {
   const WalletSettingsSheet({super.key});
@@ -17,6 +17,9 @@ class WalletSettingsSheet extends ConsumerStatefulWidget {
 }
 
 class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
+  bool _saving = false;
+  String? _error;
+  late final String _monthId;
   late final TextEditingController _openingCtrl;
   late final TextEditingController _budgetCtrl;
   late final TextEditingController _goalCtrl;
@@ -25,16 +28,18 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
   void initState() {
     super.initState();
     final settingsBox = Hive.box<WalletSettings>('walletSettings');
-    final settings =
-        settingsBox.isEmpty ? WalletSettings() : settingsBox.getAt(0)!;
+    final settings = settingsBox.isEmpty
+        ? WalletSettings()
+        : settingsBox.getAt(0)!;
 
-    final monthId = _currentMonthId();
+    _monthId = ref.read(selectedMonthIdProvider);
+    final monthId = _monthId;
     final summaryBox = Hive.box<MonthSummary>('monthSummaries');
     final summary = summaryBox.get(monthId);
 
     _openingCtrl = TextEditingController(
-      text: summary?.openingBalance != null && summary!.openingBalance > 0
-          ? summary.openingBalance.toStringAsFixed(2)
+      text: summary?.openingBalance != null
+          ? summary!.openingBalance.toStringAsFixed(2)
           : '',
     );
     _budgetCtrl = TextEditingController(
@@ -57,63 +62,92 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
     super.dispose();
   }
 
-  String _currentMonthId() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
-  }
-
   Future<void> _save() async {
+    if (_saving) return;
     HapticFeedback.mediumImpact();
 
     final opening = double.tryParse(_openingCtrl.text) ?? 0.0;
-    final budget  = double.tryParse(_budgetCtrl.text)  ?? 0.0;
-    final goal    = double.tryParse(_goalCtrl.text)    ?? 0.0;
-
-    // 1. Save WalletSettings (budget + savings goal — global across months)
-    final settingsBox = Hive.box<WalletSettings>('walletSettings');
-    final updated = WalletSettings(
-      initialBalance: opening,
-      monthlyBudget: budget,
-      semesterGoal: goal,
-    );
-    if (settingsBox.isEmpty) {
-      await settingsBox.add(updated);
-    } else {
-      await settingsBox.putAt(0, updated);
+    final budget = double.tryParse(_budgetCtrl.text) ?? 0.0;
+    final goal = double.tryParse(_goalCtrl.text) ?? 0.0;
+    final values = [_openingCtrl.text, _budgetCtrl.text, _goalCtrl.text];
+    if (values.any(
+          (value) =>
+              value.trim().isNotEmpty &&
+              double.tryParse(value)?.isFinite != true,
+        ) ||
+        budget < 0 ||
+        goal < 0) {
+      setState(
+        () => _error =
+            'Enter finite amounts. Budget and goal cannot be negative.',
+      );
+      return;
     }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      // 1. Save WalletSettings (budget + savings goal — global across months)
+      final settingsBox = Hive.box<WalletSettings>('walletSettings');
+      final updated = WalletSettings(
+        initialBalance: opening,
+        monthlyBudget: budget,
+        semesterGoal: goal,
+      );
+      if (settingsBox.isEmpty) {
+        await settingsBox.add(updated);
+      } else {
+        await settingsBox.putAt(0, updated);
+      }
 
-    // 2. Save opening balance into this month's MonthSummary
-    final monthId    = _currentMonthId();
-    final summaryBox = Hive.box<MonthSummary>('monthSummaries');
-    final existing   = summaryBox.get(monthId);
-    final newSummary = MonthSummary(
-      id: monthId,
-      openingBalance: opening,
-      totalIncome: existing?.totalIncome ?? 0,
-      totalExpense: existing?.totalExpense ?? 0,
-      closingBalance: existing?.closingBalance ?? 0,
-      budgetLimit: budget,
-      isClosed: existing?.isClosed ?? false,
-    );
-    await summaryBox.put(monthId, newSummary);
+      // 2. Save opening balance into this month's MonthSummary
+      final monthId = _monthId;
+      final summaryBox = Hive.box<MonthSummary>('monthSummaries');
+      final existing = summaryBox.get(monthId);
+      final newSummary = MonthSummary(
+        id: monthId,
+        openingBalance: opening,
+        totalIncome: existing?.totalIncome ?? 0,
+        totalExpense: existing?.totalExpense ?? 0,
+        closingBalance: existing?.closingBalance ?? 0,
+        budgetLimit: budget,
+        isClosed: existing?.isClosed ?? false,
+      );
+      await summaryBox.put(monthId, newSummary);
 
-    // 3. Invalidate providers so wallet screen refreshes
-    ref.invalidate(currentMonthSummaryProvider);
-    ref.invalidate(openingBalanceProvider);
-    ref.invalidate(runningBalanceProvider);
+      // 3. Invalidate providers so wallet screen refreshes
+      ref.read(walletNotifierProvider.notifier).refresh();
 
-    if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => _error =
+              'Could not save settings. Your inputs are kept; please retry.',
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final keyboardSpace = MediaQuery.of(context).viewInsets.bottom;
+    final isRetro = AppColors.isRetro;
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: isRetro
+            ? BorderRadius.zero
+            : const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(
+          color: isRetro
+              ? AppColors.cardBorder
+              : Colors.white.withValues(alpha: 0.08),
+          width: isRetro ? 2.0 : 1.0,
+        ),
       ),
       padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + keyboardSpace),
       child: SingleChildScrollView(
@@ -127,8 +161,12 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+                  color: isRetro
+                      ? AppColors.cardBorder
+                      : Colors.white.withValues(alpha: 0.2),
+                  borderRadius: isRetro
+                      ? BorderRadius.zero
+                      : BorderRadius.circular(2),
                 ),
               ),
             ),
@@ -139,8 +177,15 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.accentPrimary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.accentPrimary.withValues(
+                      alpha: isRetro ? 0.2 : 0.12,
+                    ),
+                    borderRadius: isRetro
+                        ? BorderRadius.zero
+                        : BorderRadius.circular(10),
+                    border: isRetro
+                        ? Border.all(color: AppColors.cardBorder, width: 1.5)
+                        : null,
                   ),
                   child: Icon(
                     Icons.tune_rounded,
@@ -149,18 +194,20 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Wallet Settings', style: AppTypography.headline),
-                    Text(
-                      'Budget, opening balance & goals',
-                      style: AppTypography.bodyText.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Wallet Settings', style: AppTypography.headline),
+                      Text(
+                        'Opening: $_monthId. Budget & goal: all months.',
+                        style: AppTypography.bodyText.copyWith(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -171,7 +218,8 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
               title: 'Opening Balance',
               controller: _openingCtrl,
               hint: '0.00',
-              helper: 'Your cash/bank balance at the start of this month.',
+              helper:
+                  'Cash/bank balance at the start of $_monthId. Not savings.',
             ),
             const SizedBox(height: 18),
 
@@ -194,23 +242,37 @@ class _WalletSettingsSheetState extends ConsumerState<WalletSettingsSheet> {
             const SizedBox(height: 28),
 
             // ── Save button ─────────────────────────────────────────────────
+            if (_error != null)
+              Text(
+                _error!,
+                style: AppTypography.bodyText.copyWith(
+                  color: AppColors.errorAlert,
+                ),
+              ),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentPrimary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: (isRetro && !AppColors.isDark)
+                      ? AppColors.textPrimary
+                      : Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: isRetro
+                        ? BorderRadius.zero
+                        : BorderRadius.circular(12),
+                    side: isRetro
+                        ? BorderSide(color: AppColors.cardBorder, width: 2.0)
+                        : BorderSide.none,
                   ),
                   elevation: 0,
                 ),
                 child: Text(
-                  'Save Settings',
+                  _saving ? 'Saving...' : 'Save Settings',
                   style: AppTypography.buttonLabel.copyWith(
-                    fontSize: 14,
+                    fontSize: isRetro ? 11 : 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -239,19 +301,25 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title.toUpperCase(),
-          style: AppTypography.sectionLabel,
-        ),
+        Text(title.toUpperCase(), style: AppTypography.sectionLabel),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.appBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.subtleBorder),
+            color: isRetro
+                ? AppColors.inputBackground
+                : AppColors.appBackground,
+            borderRadius: isRetro
+                ? BorderRadius.zero
+                : BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.cardBorder,
+              width: isRetro ? 1.5 : 1.0,
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           child: TextField(
@@ -259,31 +327,31 @@ class _Field extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: AppTypography.scoreStat.copyWith(
               color: AppColors.textPrimary,
-              fontSize: 15,
+              fontSize: isRetro ? 17 : 15,
               fontWeight: FontWeight.w600,
             ),
             cursorColor: AppColors.accentPrimary,
             decoration: InputDecoration(
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
               hintText: hint,
               hintStyle: AppTypography.scoreStat.copyWith(
                 color: AppColors.textPlaceholder,
-                fontSize: 15,
+                fontSize: isRetro ? 17 : 15,
               ),
               prefixText: '৳ ',
               prefixStyle: AppTypography.scoreStat.copyWith(
                 color: AppColors.accentPrimary,
-                fontSize: 15,
+                fontSize: isRetro ? 17 : 15,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
         const SizedBox(height: 5),
-        Text(
-          helper,
-          style: AppTypography.caption,
-        ),
+        Text(helper, style: AppTypography.caption),
       ],
     );
   }

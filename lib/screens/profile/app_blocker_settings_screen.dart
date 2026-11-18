@@ -5,12 +5,15 @@ import '../../services/focus_blocker_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../focus/mindful_friction_screen.dart';
+import '../../widgets/restricted_settings_help.dart';
+import '../../widgets/app_back_button.dart';
 
 class AppBlockerSettingsScreen extends StatefulWidget {
   const AppBlockerSettingsScreen({super.key});
 
   @override
-  State<AppBlockerSettingsScreen> createState() => _AppBlockerSettingsScreenState();
+  State<AppBlockerSettingsScreen> createState() =>
+      _AppBlockerSettingsScreenState();
 }
 
 class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
@@ -82,7 +85,9 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
     final newBlockedState = !app.isBlocked;
     await _service.toggleAppBlocked(app.packageName, newBlockedState);
     setState(() {
-      final index = _allApps.indexWhere((a) => a.packageName == app.packageName);
+      final index = _allApps.indexWhere(
+        (a) => a.packageName == app.packageName,
+      );
       if (index != -1) {
         _allApps[index] = app.copyWith(isBlocked: newBlockedState);
       }
@@ -127,7 +132,12 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
       backgroundColor: AppColors.appBackground,
       body: SafeArea(
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: AppColors.accentPrimary, strokeWidth: 2))
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.accentPrimary,
+                  strokeWidth: 2,
+                ),
+              )
             : SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
@@ -137,75 +147,86 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                     // ── Apple Top Bar (consistent with ProfileScreen) ───────────
                     Row(
                       children: [
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            margin: const EdgeInsets.only(right: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.cardBorder),
-                            ),
-                            child: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: AppColors.textPrimary,
-                              size: 16,
+                        const AppBackButton(
+                          margin: EdgeInsets.only(right: 12),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Focus Shield',
+                            style: AppTypography.displayHeading.copyWith(
+                              fontSize: AppColors.isRetro ? 15 : 22,
                             ),
                           ),
                         ),
-                        Text(
-                          'Focus Shield',
-                          style: AppTypography.displayHeading.copyWith(fontSize: 28),
-                        ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         // Preview lock screen icon
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MindfulFrictionScreen(
-                                  packageName: 'com.example.preview',
-                                  appName: 'Social Media',
-                                  taskName: 'Deep Work Session',
-                                  taskEndTime: DateTime.now().add(const Duration(minutes: 25)),
+                        Semantics(
+                          label: 'Preview Focus Shield',
+                          button: true,
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MindfulFrictionScreen(
+                                    packageName: 'com.example.preview',
+                                    appName: 'Social Media',
+                                    taskName: 'Deep Work Session',
+                                    taskEndTime: DateTime.now().add(
+                                      const Duration(minutes: 25),
+                                    ),
+                                  ),
                                 ),
+                              );
+                            },
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBackground,
+                                borderRadius: AppColors.isRetro
+                                    ? BorderRadius.zero
+                                    : BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.cardBorder,
+                                  width: AppColors.isRetro ? 2.0 : 1.0,
+                                ),
+                                boxShadow: AppColors.isRetro
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.retroShadowColor,
+                                          offset: const Offset(2, 2),
+                                          blurRadius: 0,
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                            );
-                          },
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.cardBorder),
-                            ),
-                            child: Icon(
-                              Icons.visibility_outlined,
-                              color: AppColors.textSecondary,
-                              size: 18,
+                              child: Icon(
+                                Icons.visibility_outlined,
+                                color: AppColors.textSecondary,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ),
                         // Master Switch
-                        Switch.adaptive(
-                          value: _isMasterEnabled,
-                          activeThumbColor: Colors.white,
-                          activeTrackColor: AppColors.accentPrimary,
-                          inactiveTrackColor: AppColors.cardHoverActive,
-                          onChanged: (val) async {
-                            HapticFeedback.lightImpact();
-                            setState(() => _isMasterEnabled = val);
-                            await _service.setShieldEnabled(val);
-                          },
+                        Semantics(
+                          label: 'Enable Focus Shield',
+                          child: Switch.adaptive(
+                            value: _isMasterEnabled,
+                            activeThumbColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
+                            activeTrackColor: AppColors.accentPrimary,
+                            inactiveTrackColor: AppColors.cardHoverActive,
+                            onChanged: (val) async {
+                              HapticFeedback.lightImpact();
+                              setState(() => _isMasterEnabled = val);
+                              await _service.setShieldEnabled(val);
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -213,18 +234,24 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                     const SizedBox(height: 8),
 
                     // Subtitle + counter
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         Text(
                           'Blocks apps during active DND tasks',
-                          style: AppTypography.bodyText.copyWith(fontSize: 12.5, color: AppColors.textMuted),
+                          style: AppTypography.bodyText.copyWith(
+                            fontSize: 12.5,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                         Text(
                           '$_totalBlockedCount blocked',
                           style: AppTypography.cardTime.copyWith(
                             fontSize: 12,
-                            color: _totalBlockedCount > 0 ? AppColors.accentPrimary : AppColors.textPlaceholder,
+                            color: _totalBlockedCount > 0
+                                ? AppColors.accentPrimary
+                                : AppColors.textPlaceholder,
                           ),
                         ),
                       ],
@@ -235,6 +262,8 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                     // ── Permission Notice (only if missing) ─────────────────
                     if (!_isAccessibilityGranted) ...[
                       _buildPermissionNotice(),
+                      const SizedBox(height: 12),
+                      const RestrictedSettingsHelp(),
                       const SizedBox(height: 20),
                     ],
 
@@ -248,22 +277,23 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                     const SizedBox(height: 24),
 
                     // ── Apps Group ──────────────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
                       children: [
-                        _buildSectionLabel('INSTALLED APPS (${_filteredApps.length})'),
+                        _buildSectionLabel(
+                          'INSTALLED APPS (${_filteredApps.length})',
+                        ),
                         if (_filteredApps.isNotEmpty)
-                          GestureDetector(
-                            onTap: _toggleAllInCurrentCategory,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                _isAllCurrentBlocked ? 'Unlock all' : 'Lock all',
-                                style: AppTypography.cardTime.copyWith(
-                                  fontSize: 11.5,
-                                  color: AppColors.accentPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          TextButton(
+                            onPressed: _toggleAllInCurrentCategory,
+                            child: Text(
+                              _isAllCurrentBlocked ? 'Unlock all' : 'Lock all',
+                              style: AppTypography.cardTime.copyWith(
+                                fontSize: 11.5,
+                                color: AppColors.accentPrimary,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -277,11 +307,27 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.cardBackground,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.cardBorder),
+                          borderRadius: AppColors.isRetro
+                              ? BorderRadius.zero
+                              : BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.cardBorder,
+                            width: AppColors.isRetro ? 2.0 : 1.0,
+                          ),
+                          boxShadow: AppColors.isRetro
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.retroShadowColor,
+                                    offset: const Offset(3, 3),
+                                    blurRadius: 0,
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: AppColors.isRetro
+                              ? BorderRadius.zero
+                              : BorderRadius.circular(16),
                           child: ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -292,7 +338,8 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                               color: AppColors.subtleBorder,
                               indent: 62,
                             ),
-                            itemBuilder: (context, index) => _buildAppRow(_filteredApps[index]),
+                            itemBuilder: (context, index) =>
+                                _buildAppRow(_filteredApps[index]),
                           ),
                         ),
                       ),
@@ -329,7 +376,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
       child: Text(
         label,
         style: AppTypography.sectionLabel.copyWith(
-          fontSize: 11,
+          fontSize: AppColors.isRetro ? 9.5 : 11,
           letterSpacing: 1.0,
           color: AppColors.textPlaceholder,
         ),
@@ -341,8 +388,24 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.warningTag.withValues(alpha: 0.25)),
+        borderRadius: AppColors.isRetro
+            ? BorderRadius.zero
+            : BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.warningTag.withValues(
+            alpha: AppColors.isRetro ? 0.6 : 0.25,
+          ),
+          width: AppColors.isRetro ? 2.0 : 1.0,
+        ),
+        boxShadow: AppColors.isRetro
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(3, 3),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -351,7 +414,9 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
             HapticFeedback.selectionClick();
             _service.openAccessibilitySettings();
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: AppColors.isRetro
+              ? BorderRadius.zero
+              : BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -361,9 +426,18 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                   height: 32,
                   decoration: BoxDecoration(
                     color: AppColors.warningTag.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: AppColors.isRetro
+                        ? BorderRadius.zero
+                        : BorderRadius.circular(9),
+                    border: AppColors.isRetro
+                        ? Border.all(color: AppColors.cardBorder, width: 1.5)
+                        : null,
                   ),
-                  child: Icon(Icons.shield_outlined, color: AppColors.warningTag, size: 17),
+                  child: Icon(
+                    Icons.shield_outlined,
+                    color: AppColors.warningTag,
+                    size: 17,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -404,41 +478,71 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
 
   Widget _buildSearchBar() {
     return Container(
-      height: 44,
+      constraints: const BoxConstraints(minHeight: 48),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        color: AppColors.isRetro
+            ? AppColors.inputBackground
+            : AppColors.cardBackground,
+        borderRadius: AppColors.isRetro
+            ? BorderRadius.zero
+            : BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.cardBorder,
+          width: AppColors.isRetro ? 2.0 : 1.0,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       alignment: Alignment.center,
       child: TextField(
         controller: _searchController,
         textAlignVertical: TextAlignVertical.center,
-        style: AppTypography.bodyText.copyWith(color: AppColors.textPrimary, fontSize: 13.5),
+        style: AppTypography.bodyText.copyWith(
+          color: AppColors.textPrimary,
+          fontSize: 13.5,
+        ),
         decoration: InputDecoration(
           isDense: true,
           filled: false,
           fillColor: Colors.transparent,
           contentPadding: EdgeInsets.zero,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           hintText: 'Search installed apps...',
-          hintStyle: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder, fontSize: 13.5),
+          hintStyle: AppTypography.bodyText.copyWith(
+            color: AppColors.textPlaceholder,
+            fontSize: 13.5,
+          ),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(right: 10),
-            child: Icon(Icons.search_rounded, size: 18, color: AppColors.textPlaceholder),
+            child: Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: AppColors.textPlaceholder,
+            ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 18,
+            minHeight: 18,
+          ),
           suffixIcon: _searchQuery.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
+              ? IconButton(
+                  tooltip: 'Clear app search',
+                  onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   },
-                  child: Icon(Icons.close_rounded, size: 16, color: AppColors.textPlaceholder),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: AppColors.textPlaceholder,
+                  ),
                 )
               : null,
-          suffixIconConstraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
         ),
         onChanged: (val) => setState(() => _searchQuery = val.trim()),
       ),
@@ -447,7 +551,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
 
   Widget _buildCategoryPills() {
     return SizedBox(
-      height: 32,
+      height: 24 + MediaQuery.textScalerOf(context).scale(24),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
@@ -456,29 +560,62 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
           final cat = _categories[index];
           final isSelected = _selectedCategory == cat;
 
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _selectedCategory = cat);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.accentPrimary : AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
+          return Semantics(
+            button: true,
+            selected: isSelected,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedCategory = cat);
+              },
+              child: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.accentPrimary
-                      : AppColors.cardBorder,
+                      : AppColors.cardBackground,
+                  borderRadius: AppColors.isRetro
+                      ? BorderRadius.zero
+                      : BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? (AppColors.isRetro
+                              ? AppColors.cardBorder
+                              : AppColors.accentPrimary)
+                        : AppColors.cardBorder,
+                    width: AppColors.isRetro ? 1.5 : 1.0,
+                  ),
+                  boxShadow: (AppColors.isRetro && isSelected)
+                      ? [
+                          BoxShadow(
+                            color: AppColors.retroShadowColor,
+                            offset: const Offset(2, 2),
+                            blurRadius: 0,
+                          ),
+                        ]
+                      : null,
                 ),
-              ),
-              child: Text(
-                _categoryDisplayName(cat),
-                style: AppTypography.tagChip.copyWith(
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                child: Center(
+                  child: Text(
+                    _categoryDisplayName(cat),
+                    style: AppTypography.tagChip.copyWith(
+                      color: isSelected
+                          ? (AppColors.isRetro && !AppColors.isDark
+                                ? AppColors.textPrimary
+                                : Colors.white)
+                          : AppColors.textSecondary,
+                      fontSize: AppColors.isRetro ? 11 : 12,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -498,14 +635,36 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: AppColors.isRetro
+                    ? BorderRadius.zero
+                    : BorderRadius.circular(8),
                 child: app.iconBytes != null
-                    ? Image.memory(app.iconBytes!, width: 34, height: 34, fit: BoxFit.cover)
+                    ? Image.memory(
+                        app.iconBytes!,
+                        width: 34,
+                        height: 34,
+                        fit: BoxFit.cover,
+                      )
                     : Container(
                         width: 34,
                         height: 34,
-                        color: AppColors.cardHoverActive,
-                        child: Icon(Icons.apps_rounded, size: 18, color: AppColors.textSecondary),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardHoverActive,
+                          borderRadius: AppColors.isRetro
+                              ? BorderRadius.zero
+                              : BorderRadius.circular(8),
+                          border: AppColors.isRetro
+                              ? Border.all(
+                                  color: AppColors.cardBorder,
+                                  width: 1.0,
+                                )
+                              : null,
+                        ),
+                        child: Icon(
+                          Icons.apps_rounded,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
               ),
               const SizedBox(width: 14),
@@ -517,16 +676,17 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Switch.adaptive(
-                value: app.isBlocked,
-                activeThumbColor: Colors.white,
-                activeTrackColor: AppColors.accentPrimary,
-                inactiveTrackColor: AppColors.cardHoverActive,
-                onChanged: (_) => _toggleApp(app),
+              Semantics(
+                label: 'Block ${app.name}',
+                child: Switch.adaptive(
+                  value: app.isBlocked,
+                  activeThumbColor: Theme.of(context).colorScheme.onPrimary,
+                  activeTrackColor: AppColors.accentPrimary,
+                  inactiveTrackColor: AppColors.cardHoverActive,
+                  onChanged: (_) => _toggleApp(app),
+                ),
               ),
             ],
           ),
@@ -541,7 +701,9 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen>
       alignment: Alignment.center,
       child: Text(
         'No apps found',
-        style: AppTypography.bodyText.copyWith(color: AppColors.textPlaceholder),
+        style: AppTypography.bodyText.copyWith(
+          color: AppColors.textPlaceholder,
+        ),
       ),
     );
   }

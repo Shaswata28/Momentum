@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@android:id/background">
+    <item>
         <shape>
             <corners android:radius="3dp" />
-            <solid android:color="#1F212D" />
+            <solid android:color="@color/widget_track" />
         </shape>
     </item>
-    <item android:id="@android:id/progress">
-        <clip>
+    <item>
+        <clip android:clipOrientation="horizontal" android:gravity="left">
             <shape>
                 <corners android:radius="3dp" />
-                <solid android:color="#388AF6" />
+                <solid android:color="@color/widget_accent" />
             </shape>
         </clip>
     </item>

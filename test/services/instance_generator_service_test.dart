@@ -37,7 +37,6 @@ class FakeInstanceRepo implements DailyTaskInstanceRepository {
   }
   @override List<DailyTaskInstance> getTasksForDate(DateTime date) =>
       savedInstances.where((t) => t.date.year == date.year && t.date.month == date.month && t.date.day == date.day).toList();
-  @override List<DailyTaskInstance> getAllPendingFloating() => throw UnimplementedError();
   @override Future<void> save(DailyTaskInstance task) => throw UnimplementedError();
   @override Future<void> delete(String id) => throw UnimplementedError();
 }

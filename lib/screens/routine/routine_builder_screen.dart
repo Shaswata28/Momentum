@@ -8,6 +8,7 @@ import '../../models/routine_task.dart';
 import '../../constants/date_constants.dart';
 import 'task_wizard_screen.dart';
 import 'task_block.dart';
+import '../../widgets/app_back_button.dart';
 
 class RoutineBuilderScreen extends ConsumerWidget {
   const RoutineBuilderScreen({super.key});
@@ -20,7 +21,8 @@ class RoutineBuilderScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TaskWizardScreen(existingTask: task, initialDay: initialDay),
+        builder: (_) =>
+            TaskWizardScreen(existingTask: task, initialDay: initialDay),
       ),
     );
   }
@@ -30,6 +32,13 @@ class RoutineBuilderScreen extends ConsumerWidget {
     final tasks = ref.watch(routineTasksProvider);
     final activePeriod = ref.watch(activePeriodProvider);
     final todayIndex = DateTime.now().weekday; // 1=Mon
+    final radius = BorderRadius.circular(AppColors.isRetro ? 0 : 12);
+    final borderColor = AppColors.isRetro
+        ? AppColors.inkColor
+        : AppColors.cardBorder;
+    final borderWidth = AppColors.isRetro ? 2.0 : 1.0;
+    final columnWidth = (144 * MediaQuery.textScalerOf(context).scale(12) / 12)
+        .clamp(144.0, MediaQuery.sizeOf(context).width - 40);
 
     return Scaffold(
       backgroundColor: AppColors.appBackground,
@@ -45,31 +54,15 @@ class RoutineBuilderScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          Navigator.pop(context);
-                        },
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: AppColors.cardBackground,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                          ),
-                          child: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textPrimary,
-                            size: 16,
-                          ),
-                        ),
+                      const AppBackButton(
+                        margin: EdgeInsets.only(right: 14),
                       ),
-                      const SizedBox(width: 14),
                       Expanded(
                         child: Text(
                           'Weekly Routine',
-                          style: AppTypography.displayHeading.copyWith(fontSize: 24),
+                          style: AppTypography.displayHeading.copyWith(
+                            fontSize: AppColors.isRetro ? 13 : 24,
+                          ),
                         ),
                       ),
                     ],
@@ -77,31 +70,53 @@ class RoutineBuilderScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
 
                   // Period pill + task count
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 5,
+                          horizontal: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.cardBackground,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                          borderRadius: radius,
+                          border: Border.all(
+                            color: borderColor,
+                            width: borderWidth,
+                          ),
                         ),
-                        child: Text(
-                          activePeriod?.label ?? 'General Routine',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
+                        child: Tooltip(
+                          message: activePeriod?.label ?? 'General Routine',
+                          child: Text(
+                            activePeriod?.label ?? 'General Routine',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 12),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 5,
+                          horizontal: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.accentPrimary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.accentPrimary.withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius: radius,
                           border: Border.all(
-                            color: AppColors.accentPrimary.withValues(alpha: 0.25),
+                            color: AppColors.isRetro
+                                ? AppColors.inkColor
+                                : AppColors.accentPrimary.withValues(
+                                    alpha: 0.25,
+                                  ),
+                            width: borderWidth,
                           ),
                         ),
                         child: Text(
@@ -131,19 +146,28 @@ class RoutineBuilderScreen extends ConsumerWidget {
                   children: List.generate(7, (index) {
                     final dayIndex = _dayIndices[index];
                     final isToday = dayIndex == todayIndex;
-                    final dayTasks = tasks.where((t) => t.daysOfWeek.contains(dayIndex)).toList();
+                    final dayTasks = tasks
+                        .where((t) => t.daysOfWeek.contains(dayIndex))
+                        .toList();
                     dayTasks.sort((a, b) {
                       if (a.scheduledTime != null && b.scheduledTime != null) {
-                        return (a.scheduledTime!.hour * 60 + a.scheduledTime!.minute)
-                            .compareTo(b.scheduledTime!.hour * 60 + b.scheduledTime!.minute);
+                        return (a.scheduledTime!.hour * 60 +
+                                a.scheduledTime!.minute)
+                            .compareTo(
+                              b.scheduledTime!.hour * 60 +
+                                  b.scheduledTime!.minute,
+                            );
                       }
-                      if (a.scheduledTime != null && b.scheduledTime == null) return -1;
-                      if (a.scheduledTime == null && b.scheduledTime != null) return 1;
+                      if (a.scheduledTime != null && b.scheduledTime == null)
+                        return -1;
+                      if (a.scheduledTime == null && b.scheduledTime != null)
+                        return 1;
                       return 0;
                     });
 
                     return Container(
-                      width: 144,
+                      key: ValueKey('routine-day-$dayIndex'),
+                      width: columnWidth,
                       margin: const EdgeInsets.only(right: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,17 +179,27 @@ class RoutineBuilderScreen extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 10),
                             decoration: BoxDecoration(
                               color: isToday
-                                  ? AppColors.accentPrimary.withValues(alpha: 0.12)
+                                  ? AppColors.accentPrimary.withValues(
+                                      alpha: 0.12,
+                                    )
                                   : AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: radius,
                               border: Border.all(
-                                color: isToday
-                                    ? AppColors.accentPrimary.withValues(alpha: 0.35)
-                                    : Colors.white.withValues(alpha: 0.06),
+                                width: borderWidth,
+                                color: AppColors.isRetro
+                                    ? AppColors.inkColor
+                                    : isToday
+                                    ? AppColors.accentPrimary.withValues(
+                                        alpha: 0.35,
+                                      )
+                                    : borderColor,
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 4,
                               children: [
                                 if (isToday) ...[
                                   Container(
@@ -181,19 +215,29 @@ class RoutineBuilderScreen extends ConsumerWidget {
                                 Text(
                                   _days[index],
                                   style: AppTypography.sectionLabel.copyWith(
-                                    color: isToday ? AppColors.accentPrimary : AppColors.textSecondary,
+                                    color: isToday
+                                        ? AppColors.accentPrimary
+                                        : AppColors.textSecondary,
                                     fontSize: 11.5,
-                                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w600,
+                                    fontWeight: isToday
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: isToday
-                                        ? AppColors.accentPrimary.withValues(alpha: 0.2)
-                                        : Colors.white.withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(6),
+                                        ? AppColors.accentPrimary.withValues(
+                                            alpha: 0.2,
+                                          )
+                                        : AppColors.cardHoverActive,
+                                    borderRadius: BorderRadius.circular(
+                                      AppColors.isRetro ? 0 : 6,
+                                    ),
                                   ),
                                   child: Text(
                                     '${dayTasks.length}',
@@ -216,29 +260,41 @@ class RoutineBuilderScreen extends ConsumerWidget {
                               physics: const BouncingScrollPhysics(),
                               child: Column(
                                 children: [
-                                  ...dayTasks.map((t) => TaskBlock(
-                                    task: t,
-                                    onTap: () => _openEditor(context, task: t),
-                                  )),
+                                  ...dayTasks.map(
+                                    (t) => TaskBlock(
+                                      task: t,
+                                      onTap: () =>
+                                          _openEditor(context, task: t),
+                                    ),
+                                  ),
                                   const SizedBox(height: 6),
 
                                   // Add button
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      _openEditor(context, initialDay: dayIndex);
-                                    },
-                                    child: Container(
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.cardBackground,
-                                        border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.06),
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
+                                  Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.cardBackground,
+                                      border: Border.all(
+                                        color: borderColor,
+                                        width: borderWidth,
                                       ),
-                                      alignment: Alignment.center,
-                                      child: Icon(
+                                      borderRadius: radius,
+                                    ),
+                                    child: IconButton(
+                                      key: ValueKey('routine-add-$dayIndex'),
+                                      tooltip: 'Add task for ${_days[index]}',
+                                      constraints: const BoxConstraints(
+                                        minHeight: 48,
+                                        minWidth: 48,
+                                      ),
+                                      onPressed: () {
+                                        HapticFeedback.lightImpact();
+                                        _openEditor(
+                                          context,
+                                          initialDay: dayIndex,
+                                        );
+                                      },
+                                      icon: Icon(
                                         Icons.add_rounded,
                                         color: AppColors.accentPrimary,
                                         size: 18,

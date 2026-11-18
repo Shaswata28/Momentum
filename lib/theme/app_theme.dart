@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -8,6 +7,14 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       useMaterial3: false,
+      fontFamily: 'DM Sans',
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
       scaffoldBackgroundColor: DarkColors.appBackground,
       colorScheme: const ColorScheme.dark(
         primary: DarkColors.accentPrimary,
@@ -44,9 +51,7 @@ class AppTheme {
         backgroundColor: DarkColors.cardHoverActive,
         contentTextStyle: const TextStyle(color: DarkColors.textPrimary),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dividerTheme: const DividerThemeData(
         color: DarkColors.dividerBorderHover,
@@ -58,7 +63,6 @@ class AppTheme {
         fillColor: Colors.transparent,
         border: InputBorder.none,
       ),
-      textTheme: GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme),
     );
   }
 
@@ -67,6 +71,14 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.light,
       useMaterial3: false,
+      fontFamily: 'DM Sans',
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
       scaffoldBackgroundColor: LightColors.appBackground,
       colorScheme: const ColorScheme.light(
         primary: LightColors.accentPrimary,
@@ -103,9 +115,7 @@ class AppTheme {
         backgroundColor: LightColors.cardHoverActive,
         contentTextStyle: const TextStyle(color: LightColors.textPrimary),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dividerTheme: const DividerThemeData(
         color: LightColors.dividerBorderHover,
@@ -117,7 +127,6 @@ class AppTheme {
         fillColor: Colors.transparent,
         border: InputBorder.none,
       ),
-      textTheme: GoogleFonts.dmSansTextTheme(ThemeData.light().textTheme),
     );
   }
 }

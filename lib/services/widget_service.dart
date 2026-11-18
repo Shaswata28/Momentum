@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import '../models/daily_task_instance.dart';
 import '../models/enums.dart';
@@ -5,6 +6,25 @@ import 'notification_service.dart';
 
 class WidgetService {
   static const String androidWidgetName = 'DailyTrackerWidgetProvider';
+
+  static Future<void> _themeSync = Future<void>.value();
+
+  /// Keep theme writes ordered when the appearance controls are tapped quickly.
+  /// Save the mode itself so Android can resolve system brightness independently.
+  static Future<void> syncTheme(String mode) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return Future<void>.value();
+    }
+    _themeSync = _themeSync.then((_) async {
+      try {
+        await HomeWidget.saveWidgetData<String>('theme_mode', mode);
+        await HomeWidget.updateWidget(androidName: androidWidgetName);
+      } catch (error) {
+        debugPrint('Widget theme sync unavailable: $error');
+      }
+    });
+    return _themeSync;
+  }
 
   static Future<void> updateWidgetData({
     required String? currentTaskId,
@@ -89,7 +109,7 @@ class WidgetService {
     } else {
       // 2. No active inProgress task: match current wall-clock window
       for (var t in tasks) {
-        if (t.status == TaskStatus.done || t.status == TaskStatus.skipped || t.isBufferBlock) continue;
+        if ((t.status != TaskStatus.pending && t.status != TaskStatus.inProgress) || t.isBufferBlock) continue;
 
         if (t.scheduledTime != null) {
           final start = DateTime(now.year, now.month, now.day, t.scheduledTime!.hour, t.scheduledTime!.minute);
@@ -117,7 +137,7 @@ class WidgetService {
 
     // 3. Find next upcoming task
     for (var t in tasks) {
-      if (t.id == currentTask?.id || t.status == TaskStatus.done || t.status == TaskStatus.skipped || t.isBufferBlock) continue;
+      if (t.id == currentTask?.id || (t.status != TaskStatus.pending && t.status != TaskStatus.inProgress) || t.isBufferBlock) continue;
       if (t.scheduledTime != null) {
         final start = DateTime(now.year, now.month, now.day, t.scheduledTime!.hour, t.scheduledTime!.minute);
         if (start.isAfter(now)) {
@@ -141,8 +161,7 @@ class WidgetService {
     nextTask ??= tasks
         .where((t) =>
             t.id != currentTask?.id &&
-            t.status != TaskStatus.done &&
-            t.status != TaskStatus.skipped &&
+            (t.status == TaskStatus.pending || t.status == TaskStatus.inProgress) &&
             !t.isBufferBlock)
         .firstOrNull;
 

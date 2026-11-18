@@ -13,31 +13,43 @@ class TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = AppColors.textMuted;
-    Color bgColor = Colors.white.withValues(alpha: 0.04);
-    Color borderColor = Colors.white.withValues(alpha: 0.06);
+    Color bgColor = AppColors.cardHoverActive;
+    Color borderColor = AppColors.subtleBorder;
+
+    final isRetro = AppColors.isRetro;
 
     switch (type) {
       case TagType.fixed:
       case TagType.floating:
       case TagType.adhoc:
         textColor = AppColors.textSecondary;
-        bgColor = Colors.white.withValues(alpha: 0.04);
-        borderColor = Colors.white.withValues(alpha: 0.06);
+        bgColor = isRetro
+            ? AppColors.cardBackground
+            : AppColors.cardHoverActive;
+        borderColor = isRetro ? AppColors.cardBorder : AppColors.subtleBorder;
         break;
       case TagType.buffer:
-        textColor = AppColors.textPlaceholder;
-        bgColor = Colors.white.withValues(alpha: 0.03);
-        borderColor = Colors.white.withValues(alpha: 0.04);
+        textColor = AppColors.textSecondary;
+        bgColor = AppColors.appBackground;
+        borderColor = isRetro ? AppColors.cardBorder : AppColors.subtleBorder;
         break;
       case TagType.dnd:
-        textColor = AppColors.accentPrimary;
-        bgColor = AppColors.accentPrimary.withValues(alpha: 0.08);
-        borderColor = AppColors.accentPrimary.withValues(alpha: 0.16);
+        textColor = AppColors.textPrimary;
+        bgColor = isRetro
+            ? AppColors.accentPrimary.withValues(alpha: 0.18)
+            : AppColors.accentPrimary.withValues(alpha: 0.08);
+        borderColor = isRetro
+            ? AppColors.cardBorder
+            : AppColors.accentPrimary.withValues(alpha: 0.16);
         break;
       case TagType.missed:
-        textColor = AppColors.errorAlert;
-        bgColor = AppColors.errorAlert.withValues(alpha: 0.08);
-        borderColor = AppColors.errorAlert.withValues(alpha: 0.18);
+        textColor = AppColors.textPrimary;
+        bgColor = isRetro
+            ? AppColors.errorAlert.withValues(alpha: 0.18)
+            : AppColors.errorAlert.withValues(alpha: 0.08);
+        borderColor = isRetro
+            ? AppColors.cardBorder
+            : AppColors.errorAlert.withValues(alpha: 0.18);
         break;
     }
 
@@ -45,22 +57,28 @@ class TagChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2.5, horizontal: 7),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: borderColor, width: 1),
+        borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(6),
+        border: Border.all(color: borderColor, width: isRetro ? 1.5 : 1.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (type == TagType.dnd) ...[
-            Icon(Icons.shield_outlined, size: 10.5, color: AppColors.accentPrimary),
+            Icon(
+              Icons.shield_outlined,
+              size: 10.5,
+              color: AppColors.accentPrimary,
+            ),
             const SizedBox(width: 3.5),
           ],
-          Text(
-            label,
-            style: AppTypography.tagChip.copyWith(
-              color: textColor,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              style: AppTypography.tagChip.copyWith(
+                color: textColor,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

@@ -12,8 +12,11 @@ class FocusBlockerService {
   factory FocusBlockerService() => _instance;
   FocusBlockerService._internal();
 
-  static const MethodChannel _channel = MethodChannel('com.example.daily_tracker/focus_blocker');
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static const MethodChannel _channel = MethodChannel(
+    'com.example.daily_tracker/focus_blocker',
+  );
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   static const String _boxName = 'focusShieldSettings';
   static const String _keyBlockedPackages = 'blocked_packages';
@@ -39,7 +42,9 @@ class FocusBlockerService {
 
     // Check if cold-started by a friction intent
     try {
-      final pending = await _channel.invokeMethod<Map<dynamic, dynamic>>('checkPendingFriction');
+      final pending = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'checkPendingFriction',
+      );
       if (pending != null) {
         _handleIncomingFriction(Map<String, dynamic>.from(pending));
       }
@@ -52,7 +57,10 @@ class FocusBlockerService {
     final nav = navigatorKey.currentState;
     if (nav == null) {
       // Retry in 500ms if navigation state is not ready yet
-      Timer(const Duration(milliseconds: 500), () => _handleIncomingFriction(data));
+      Timer(
+        const Duration(milliseconds: 500),
+        () => _handleIncomingFriction(data),
+      );
       return;
     }
 
@@ -61,20 +69,24 @@ class FocusBlockerService {
     final appName = data['appName'] as String? ?? packageName;
     final taskName = data['taskName'] as String? ?? 'Focus Task';
     final taskEndTimeMs = data['taskEndTime'] as int? ?? 0;
-    final taskEndTime = taskEndTimeMs > 0 ? DateTime.fromMillisecondsSinceEpoch(taskEndTimeMs) : null;
+    final taskEndTime = taskEndTimeMs > 0
+        ? DateTime.fromMillisecondsSinceEpoch(taskEndTimeMs)
+        : null;
 
-    nav.push(
-      MaterialPageRoute(
-        builder: (_) => MindfulFrictionScreen(
-          packageName: packageName,
-          appName: appName,
-          taskName: taskName,
-          taskEndTime: taskEndTime,
-        ),
-      ),
-    ).then((_) {
-      _isFrictionScreenVisible = false;
-    });
+    nav
+        .push(
+          MaterialPageRoute(
+            builder: (_) => MindfulFrictionScreen(
+              packageName: packageName,
+              appName: appName,
+              taskName: taskName,
+              taskEndTime: taskEndTime,
+            ),
+          ),
+        )
+        .then((_) {
+          _isFrictionScreenVisible = false;
+        });
   }
 
   bool isShieldEnabled() {
@@ -100,6 +112,12 @@ class FocusBlockerService {
   Future<void> openAccessibilitySettings() async {
     try {
       await _channel.invokeMethod('openAccessibilitySettings');
+    } catch (_) {}
+  }
+
+  Future<void> openAppSettings() async {
+    try {
+      await _channel.invokeMethod('openAppSettings');
     } catch (_) {}
   }
 
@@ -136,7 +154,10 @@ class FocusBlockerService {
     }
   }
 
-  Future<void> batchSetBlocked(List<String> packageNames, bool isBlocked) async {
+  Future<void> batchSetBlocked(
+    List<String> packageNames,
+    bool isBlocked,
+  ) async {
     final set = getBlockedPackages().toSet();
     if (isBlocked) {
       set.addAll(packageNames);
@@ -163,7 +184,9 @@ class FocusBlockerService {
     }
 
     try {
-      final rawList = await _channel.invokeMethod<List<dynamic>>('getInstalledApps');
+      final rawList = await _channel.invokeMethod<List<dynamic>>(
+        'getInstalledApps',
+      );
       if (rawList == null) return [];
 
       final blockedSet = getBlockedPackages().toSet();
@@ -182,7 +205,11 @@ class FocusBlockerService {
 
   // --- Focus Synchronization ---
 
-  Future<void> syncFocusState({required bool isActive, String? taskName, DateTime? endTime}) async {
+  Future<void> syncFocusState({
+    required bool isActive,
+    String? taskName,
+    DateTime? endTime,
+  }) async {
     if (!isShieldEnabled()) {
       isActive = false;
     }
@@ -196,9 +223,9 @@ class FocusBlockerService {
     } catch (_) {}
   }
 
-  void syncTasks(List<DailyTaskInstance> tasks) {
+  Future<void> syncTasks(List<DailyTaskInstance> tasks) async {
     if (!isShieldEnabled()) {
-      syncFocusState(isActive: false);
+      await syncFocusState(isActive: false);
       return;
     }
 
@@ -208,12 +235,23 @@ class FocusBlockerService {
     DateTime? activeEndTime;
 
     for (var task in tasks) {
-      if (task.status == TaskStatus.done || task.status == TaskStatus.skipped || !task.enableDND) {
+      if (!task.enableDND ||
+          (task.status != TaskStatus.pending &&
+              task.status != TaskStatus.inProgress) ||
+          task.date.year != now.year ||
+          task.date.month != now.month ||
+          task.date.day != now.day) {
         continue;
       }
 
       if (task.scheduledTime != null) {
-        final start = DateTime(now.year, now.month, now.day, task.scheduledTime!.hour, task.scheduledTime!.minute);
+        final start = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          task.scheduledTime!.hour,
+          task.scheduledTime!.minute,
+        );
         final end = start.add(Duration(minutes: task.durationMinutes));
         if (now.isAfter(start) && now.isBefore(end)) {
           shouldBeOn = true;
@@ -222,8 +260,20 @@ class FocusBlockerService {
           break;
         }
       } else if (task.flexWindowStart != null && task.flexWindowEnd != null) {
-        final start = DateTime(now.year, now.month, now.day, task.flexWindowStart!.hour, task.flexWindowStart!.minute);
-        final end = DateTime(now.year, now.month, now.day, task.flexWindowEnd!.hour, task.flexWindowEnd!.minute);
+        final start = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          task.flexWindowStart!.hour,
+          task.flexWindowStart!.minute,
+        );
+        final end = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          task.flexWindowEnd!.hour,
+          task.flexWindowEnd!.minute,
+        );
         if (now.isAfter(start) && now.isBefore(end)) {
           shouldBeOn = true;
           activeTitle = task.title;
@@ -233,7 +283,7 @@ class FocusBlockerService {
       }
     }
 
-    syncFocusState(
+    await syncFocusState(
       isActive: shouldBeOn,
       taskName: activeTitle,
       endTime: activeEndTime,
@@ -244,7 +294,8 @@ class FocusBlockerService {
 
   int getRemainingEmergencyPasses() {
     final now = DateTime.now();
-    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final savedDate = _box.get(_keyPassDate, defaultValue: '') as String;
 
     if (savedDate != todayStr) {
@@ -258,7 +309,10 @@ class FocusBlockerService {
     return remaining < 0 ? 0 : remaining;
   }
 
-  Future<bool> useEmergencyPass({required String targetPackage, int minutes = 5}) async {
+  Future<bool> useEmergencyPass({
+    required String targetPackage,
+    int minutes = 5,
+  }) async {
     final remaining = getRemainingEmergencyPasses();
     if (remaining <= 0) return false;
 
@@ -276,4 +330,3 @@ class FocusBlockerService {
     }
   }
 }
-

@@ -25,6 +25,8 @@ class DailyTrackerWidgetProvider : HomeWidgetProvider() {
         val nextTaskTitle = widgetData.getString("next_task_title", "No upcoming task") ?: "No upcoming task"
         val nextTaskTime = widgetData.getString("next_task_time", "--:--") ?: "--:--"
         val progressText = widgetData.getString("progress_text", "0 / 0 done") ?: "0 / 0 done"
+        val theme = WidgetTheme.fromMode(widgetData.getString("theme_mode", "system"))
+        val layout = if (theme.primary == null) R.layout.widget_layout_system else R.layout.widget_layout
 
         val taskStartMillis = try {
             widgetData.getString("task_start_millis", null)?.toLongOrNull()
@@ -69,13 +71,18 @@ class DailyTrackerWidgetProvider : HomeWidgetProvider() {
 
         appWidgetIds.forEach { widgetId ->
             try {
-                val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
-                    setTextViewText(R.id.tv_headline_label, headlineLabel)
-                    setTextViewText(R.id.tv_headline_title, headlineTitle)
-                    setTextViewText(R.id.tv_next_task_title, nextTaskTitle)
-                    setTextViewText(R.id.tv_next_task_time, nextTaskTime)
-                    setTextViewText(R.id.tv_total_progress, progressText)
-                    setProgressBar(R.id.progress_current, 100, progressPercent, false)
+                val views = RemoteViews(context.packageName, layout).apply {
+                    theme.applyTo(this)
+                    setTextViewText(R.id.tv_headline_label, theme.text(headlineLabel))
+                    setTextViewText(R.id.tv_headline_title, theme.text(headlineTitle))
+                    setTextViewText(R.id.tv_next_label, theme.text("NEXT"))
+                    setTextViewText(R.id.tv_next_task_title, theme.text(nextTaskTitle))
+                    setTextViewText(R.id.tv_next_task_time, theme.text(nextTaskTime))
+                    setTextViewText(R.id.tv_total_progress, theme.text(progressText))
+                    // Image levels drive the clip drawable on all supported Android versions.
+                    val progress = progressPercent.coerceIn(0, 100)
+                    setInt(R.id.progress_current, "setImageLevel", progress * 100)
+                    setContentDescription(R.id.progress_current, "$progress% of current task elapsed")
 
                     val rootIntent = HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java)
                     setOnClickPendingIntent(R.id.widget_root, rootIntent)

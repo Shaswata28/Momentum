@@ -1,0 +1,10 @@
+<resources>
+    <color name="widget_bg">#0B0B0E</color>
+    <color name="widget_card">#14141B</color>
+    <color name="widget_primary">#F8FAFC</color>
+    <color name="widget_secondary">#94A3B8</color>
+    <color name="widget_border">#12FFFFFF</color>
+    <color name="widget_track">#2B2D3E</color>
+    <color name="widget_accent">#388AF6</color>
+</resources>
+

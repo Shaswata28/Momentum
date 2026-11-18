@@ -46,25 +46,57 @@ void main() {
       final notifier = ThemeModeNotifier();
 
       // Switch to Light
-      notifier.setThemeMode(ThemeMode.light);
-      expect(notifier.state, ThemeMode.light);
+      notifier.setThemeMode(AppThemeMode.light);
+      expect(notifier.state, AppThemeMode.light);
       expect(AppColors.isDark, isFalse);
       expect(AppColors.cardBackground, const Color(0xFFFFFFFF));
 
       // Switch to Dark
-      notifier.setThemeMode(ThemeMode.dark);
-      expect(notifier.state, ThemeMode.dark);
+      notifier.setThemeMode(AppThemeMode.dark);
+      expect(notifier.state, AppThemeMode.dark);
       expect(AppColors.isDark, isTrue);
       expect(AppColors.cardBackground, const Color(0xFF171821));
 
       // Switch to System & update brightness
-      notifier.setThemeMode(ThemeMode.system);
-      expect(notifier.state, ThemeMode.system);
+      notifier.setThemeMode(AppThemeMode.system);
+      expect(notifier.state, AppThemeMode.system);
 
       notifier.updateSystemBrightness(Brightness.light);
       expect(AppColors.isDark, isFalse);
 
       notifier.updateSystemBrightness(Brightness.dark);
+      expect(AppColors.isDark, isTrue);
+    });
+
+    test('ThemeModeNotifier setRetro and setDark independent toggle logic', () {
+      final notifier = ThemeModeNotifier();
+
+      // Start in Dark
+      notifier.setThemeMode(AppThemeMode.dark);
+      expect(notifier.state, AppThemeMode.dark);
+
+      // Toggle theme to Retro (keeps appearance Dark -> retroDark)
+      notifier.setRetro(true);
+      expect(notifier.state, AppThemeMode.retroDark);
+      expect(AppColors.isRetro, isTrue);
+      expect(AppColors.isDark, isTrue);
+
+      // Toggle appearance to Light (keeps theme Retro -> retroLight)
+      notifier.setDark(false);
+      expect(notifier.state, AppThemeMode.retroLight);
+      expect(AppColors.isRetro, isTrue);
+      expect(AppColors.isDark, isFalse);
+
+      // Toggle theme to Classic (keeps appearance Light -> light)
+      notifier.setRetro(false);
+      expect(notifier.state, AppThemeMode.light);
+      expect(AppColors.isRetro, isFalse);
+      expect(AppColors.isDark, isFalse);
+
+      // Toggle appearance to Dark (keeps theme Classic -> dark)
+      notifier.setDark(true);
+      expect(notifier.state, AppThemeMode.dark);
+      expect(AppColors.isRetro, isFalse);
       expect(AppColors.isDark, isTrue);
     });
   });

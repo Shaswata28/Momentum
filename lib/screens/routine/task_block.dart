@@ -61,100 +61,120 @@ class TaskBlock extends StatelessWidget {
         ? _formatTime(task.scheduledTime)
         : 'flexible';
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        label: 'Edit task',
+        child: Material(
           color: bg,
-          border: Border.all(color: border, width: 1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title row with dot
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  margin: const EdgeInsets.only(top: 5, right: 8),
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
-                ),
-                Expanded(
-                  child: Text(
-                    task.title,
-                    style: AppTypography.cardTitle.copyWith(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: AppColors.isRetro ? AppColors.inkColor : border,
+              width: AppColors.isRetro ? 2 : 1,
             ),
-            const SizedBox(height: 6),
+            borderRadius: BorderRadius.circular(AppColors.isRetro ? 0 : 12),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppColors.isRetro ? 0 : 12),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+              padding: const EdgeInsets.all(11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title row with dot
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(top: 5, right: 8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: dot,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          style: AppTypography.cardTitle.copyWith(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
 
-            // Meta row: time + duration
-            Row(
-              children: [
-                if (timeStr.isNotEmpty) ...[
-                  Text(
-                    timeStr,
-                    style: AppTypography.cardTime.copyWith(
-                      fontSize: 10,
-                      color: dot,
-                    ),
+                  // Meta row: time + duration
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (timeStr.isNotEmpty) ...[
+                        Text(
+                          timeStr,
+                          style: AppTypography.cardTime.copyWith(
+                            fontSize: 10,
+                            color: dot,
+                          ),
+                        ),
+                        Container(
+                          width: 3,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.textPlaceholder,
+                          ),
+                        ),
+                      ],
+                      Text(
+                        _durationLabel(task.durationMinutes),
+                        style: AppTypography.caption.copyWith(
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  Container(
-                    width: 3,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.textPlaceholder,
+
+                  // DND badge
+                  if (task.enableDND) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningTag.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(
+                          AppColors.isRetro ? 0 : 4,
+                        ),
+                        border: Border.all(
+                          color: AppColors.warningTag.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        'DND',
+                        style: AppTypography.sectionLabel.copyWith(
+                          color: AppColors.warningTag,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 5),
+                  ],
                 ],
-                Text(
-                  _durationLabel(task.durationMinutes),
-                  style: AppTypography.caption.copyWith(
-                    fontSize: 10,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-
-            // DND badge
-            if (task.enableDND) ...[
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: AppColors.warningTag.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: AppColors.warningTag.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Text(
-                  'DND',
-                  style: AppTypography.sectionLabel.copyWith(
-                    color: AppColors.warningTag,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );

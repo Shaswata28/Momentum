@@ -1,7 +1,7 @@
 name: momentum
 description: "Momentum â€” personal daily routine, habit, and finance tracker for Android."
 publish_to: none
-version: 1.2.0+2
+version: 2.0.0+3
 
 environment:
   sdk: ^3.11.3
@@ -43,6 +43,7 @@ dependencies:
   uuid: ^4.0.0
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.2
+  phosphoricons_flutter: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -57,5 +58,22 @@ flutter:
   assets:
     - assets/icon/
     - assets/images/
+    - assets/fonts/
+  fonts:
+    - family: DM Sans
+      fonts:
+        - asset: assets/fonts/DMSans.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+    - family: Press Start 2P
+      fonts:
+        - asset: assets/fonts/PressStart2P.ttf
+    - family: Pixelify Sans
+      fonts:
+        - asset: assets/fonts/PixelifySans.ttf
+    - family: VT323
+      fonts:
+        - asset: assets/fonts/VT323.ttf
 
   # To add assets to your application, add an assets section, like this:

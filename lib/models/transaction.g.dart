@@ -128,6 +128,28 @@ class ExpenseTypeAdapter extends TypeAdapter<ExpenseType> {
         return ExpenseType.fees;
       case 8:
         return ExpenseType.other;
+      case 9:
+        return ExpenseType.internet;
+      case 10:
+        return ExpenseType.mobileBill;
+      case 11:
+        return ExpenseType.medicine;
+      case 12:
+        return ExpenseType.grocery;
+      case 13:
+        return ExpenseType.food;
+      case 14:
+        return ExpenseType.cigarette;
+      case 15:
+        return ExpenseType.tour;
+      case 16:
+        return ExpenseType.entertainment;
+      case 17:
+        return ExpenseType.rent;
+      case 18:
+        return ExpenseType.utilities;
+      case 19:
+        return ExpenseType.education;
       default:
         return ExpenseType.fixed;
     }
@@ -163,6 +185,39 @@ class ExpenseTypeAdapter extends TypeAdapter<ExpenseType> {
       case ExpenseType.other:
         writer.writeByte(8);
         break;
+      case ExpenseType.internet:
+        writer.writeByte(9);
+        break;
+      case ExpenseType.mobileBill:
+        writer.writeByte(10);
+        break;
+      case ExpenseType.medicine:
+        writer.writeByte(11);
+        break;
+      case ExpenseType.grocery:
+        writer.writeByte(12);
+        break;
+      case ExpenseType.food:
+        writer.writeByte(13);
+        break;
+      case ExpenseType.cigarette:
+        writer.writeByte(14);
+        break;
+      case ExpenseType.tour:
+        writer.writeByte(15);
+        break;
+      case ExpenseType.entertainment:
+        writer.writeByte(16);
+        break;
+      case ExpenseType.rent:
+        writer.writeByte(17);
+        break;
+      case ExpenseType.utilities:
+        writer.writeByte(18);
+        break;
+      case ExpenseType.education:
+        writer.writeByte(19);
+        break;
     }
   }
 
@@ -194,6 +249,18 @@ class IncomeSourceAdapter extends TypeAdapter<IncomeSource> {
         return IncomeSource.work;
       case 4:
         return IncomeSource.gift;
+      case 5:
+        return IncomeSource.salary;
+      case 6:
+        return IncomeSource.oddJob;
+      case 7:
+        return IncomeSource.bonus;
+      case 8:
+        return IncomeSource.business;
+      case 9:
+        return IncomeSource.investment;
+      case 10:
+        return IncomeSource.rental;
       default:
         return IncomeSource.tuition;
     }
@@ -216,6 +283,24 @@ class IncomeSourceAdapter extends TypeAdapter<IncomeSource> {
         break;
       case IncomeSource.gift:
         writer.writeByte(4);
+        break;
+      case IncomeSource.salary:
+        writer.writeByte(5);
+        break;
+      case IncomeSource.oddJob:
+        writer.writeByte(6);
+        break;
+      case IncomeSource.bonus:
+        writer.writeByte(7);
+        break;
+      case IncomeSource.business:
+        writer.writeByte(8);
+        break;
+      case IncomeSource.investment:
+        writer.writeByte(9);
+        break;
+      case IncomeSource.rental:
+        writer.writeByte(10);
         break;
     }
   }

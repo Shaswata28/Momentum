@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -11,122 +12,162 @@ import '../services/notification_service.dart';
 import '../services/dnd_service.dart';
 import '../services/widget_service.dart';
 
-final taskInstanceRepositoryProvider = Provider((ref) {
-  return DailyTaskInstanceRepository();
-});
-
+final taskInstanceRepositoryProvider = Provider(
+  (ref) => DailyTaskInstanceRepository(),
+);
 final routineTaskRepositoryProviderDB = Provider(
   (ref) => RoutineTaskRepository(),
 );
 final routinePeriodRepositoryProviderDB = Provider(
   (ref) => RoutinePeriodRepository(),
 );
-
-final instanceGeneratorProvider = Provider((ref) {
-  return InstanceGeneratorService(
+final instanceGeneratorProvider = Provider(
+  (ref) => InstanceGeneratorService(
     periodRepo: ref.watch(routinePeriodRepositoryProviderDB),
     taskRepo: ref.watch(routineTaskRepositoryProviderDB),
     instanceRepo: ref.watch(taskInstanceRepositoryProvider),
-  );
-});
-
+  ),
+);
 final todayTasksProvider =
     StateNotifierProvider<TodayTasksNotifier, List<DailyTaskInstance>>((ref) {
-      final repo = ref.watch(taskInstanceRepositoryProvider);
-      final generator = ref.watch(instanceGeneratorProvider);
-      return TodayTasksNotifier(repo, generator);
+      return TodayTasksNotifier(
+        ref.watch(taskInstanceRepositoryProvider),
+        ref.watch(instanceGeneratorProvider),
+      );
     });
 
 class TodayTasksNotifier extends StateNotifier<List<DailyTaskInstance>> {
   final DailyTaskInstanceRepository repo;
   final InstanceGeneratorService generator;
-  static const Uuid _uuid = Uuid();
+  final Future<void> Function(DailyTaskInstance) scheduleReminder;
+  final Future<void> Function(String) cancelReminder;
+  final FutureOr<void> Function(List<DailyTaskInstance>) syncTasks;
+  final DateTime Function() clock;
+  final Map<String, Future<void>> _inFlight = {};
+  Future<void> _queue = Future.value();
 
-  TodayTasksNotifier(this.repo, this.generator) : super([]) {
-    loadTodayTasks();
+  TodayTasksNotifier(
+    this.repo,
+    this.generator, {
+    Future<void> Function(DailyTaskInstance)? scheduleReminder,
+    Future<void> Function(String)? cancelReminder,
+    FutureOr<void> Function(List<DailyTaskInstance>)? syncTasks,
+    DateTime Function()? clock,
+    bool autoLoad = true,
+  }) : scheduleReminder =
+           scheduleReminder ?? NotificationService().scheduleTaskNotifications,
+       cancelReminder =
+           cancelReminder ?? NotificationService().cancelTaskNotifications,
+       syncTasks = syncTasks ?? _syncWidgetAndDnd,
+       clock = clock ?? DateTime.now,
+       super([]) {
+    if (autoLoad)
+      loadTodayTasks().catchError((Object error) {
+        debugPrint('Today refresh failed: $error');
+      });
   }
 
-  Future<void> loadTodayTasks() async {
-    final today = DateTime.now();
+  // Serialize generation and writes so foreground refresh cannot duplicate instances
+  // or publish a stale list over a just-completed mutation.
+  Future<void> _run(String key, Future<void> Function() action) {
+    final existing = _inFlight[key];
+    if (existing != null) return existing;
+    final result = _queue.then((_) => action());
+    _queue = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    final guarded = result.whenComplete(() {
+      _inFlight.remove(key);
+    });
+    _inFlight[key] = guarded;
+    return guarded;
+  }
 
+  DailyTaskInstance _copy(
+    DailyTaskInstance t,
+    TaskStatus status, {
+    DateTime? completedAt,
+    DateTime? rescheduledToDate,
+  }) => DailyTaskInstance(
+    id: t.id,
+    routineTaskId: t.routineTaskId,
+    date: t.date,
+    title: t.title,
+    taskType: t.taskType,
+    scheduledTime: t.scheduledTime,
+    flexWindowStart: t.flexWindowStart,
+    flexWindowEnd: t.flexWindowEnd,
+    durationMinutes: t.durationMinutes,
+    status: status,
+    completedAt: completedAt,
+    rescheduledToDate: rescheduledToDate,
+    isBufferBlock: t.isBufferBlock,
+    enableDND: t.enableDND,
+    notificationId: t.notificationId,
+  );
+
+  bool _overdue(DailyTaskInstance task) {
+    final time = task.taskType == TaskType.floating
+        ? task.flexWindowEnd
+        : task.scheduledTime;
+    if (time == null || task.isBufferBlock) return false;
+    var end = DateTime(
+      task.date.year,
+      task.date.month,
+      task.date.day,
+      time.hour,
+      time.minute,
+    );
+    if (task.taskType != TaskType.floating)
+      end = end.add(Duration(minutes: task.durationMinutes));
+    return clock().isAfter(end);
+  }
+
+  Future<void> _refresh() async {
+    final today = clock();
+    if (state.any(
+      (task) =>
+          task.date.year != today.year ||
+          task.date.month != today.month ||
+          task.date.day != today.day,
+    )) {
+      if (mounted) state = [];
+      await syncTasks([]);
+    }
     await generator.generateForDate(today);
     final tasks = repo.getTasksForDate(today);
-
-    final tasksList = tasks.toList();
-    final now = DateTime.now();
-
-    for (int i = 0; i < tasksList.length; i++) {
-      final task = tasksList[i];
-      if (task.status == TaskStatus.pending && !task.isBufferBlock) {
-        bool isMissed = false;
-        if (task.taskType == TaskType.floating) {
-          if (task.flexWindowEnd != null) {
-            final endDt = DateTime(
-              task.date.year,
-              task.date.month,
-              task.date.day,
-              task.flexWindowEnd!.hour,
-              task.flexWindowEnd!.minute,
-            );
-            if (now.isAfter(endDt)) isMissed = true;
-          }
-        } else {
-          if (task.scheduledTime != null) {
-            final endDt = DateTime(
-              task.date.year,
-              task.date.month,
-              task.date.day,
-              task.scheduledTime!.hour,
-              task.scheduledTime!.minute,
-            ).add(Duration(minutes: task.durationMinutes));
-            if (now.isAfter(endDt)) isMissed = true;
-          }
-        }
-
-        if (isMissed) {
-          final missedTask = DailyTaskInstance(
-            id: task.id,
-            routineTaskId: task.routineTaskId,
-            date: task.date,
-            title: task.title,
-            taskType: task.taskType,
-            scheduledTime: task.scheduledTime,
-            flexWindowStart: task.flexWindowStart,
-            flexWindowEnd: task.flexWindowEnd,
-            durationMinutes: task.durationMinutes,
-            status: TaskStatus.missed,
-            completedAt: task.completedAt,
-            rescheduledToDate: task.rescheduledToDate,
-            isBufferBlock: task.isBufferBlock,
-            enableDND: task.enableDND,
-            notificationId: task.notificationId,
-          );
-          await repo.save(missedTask);
-          tasksList[i] = missedTask;
-        }
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].status == TaskStatus.pending && _overdue(tasks[i])) {
+        tasks[i] = _copy(tasks[i], TaskStatus.missed);
+        await repo.save(tasks[i]);
+        await cancelReminder(tasks[i].id);
       }
     }
-
-    tasksList.sort((a, b) {
-      if (a.scheduledTime != null && b.scheduledTime != null) {
-        final aMin = a.scheduledTime!.hour * 60 + a.scheduledTime!.minute;
-        final bMin = b.scheduledTime!.hour * 60 + b.scheduledTime!.minute;
-        return aMin.compareTo(bMin);
-      }
-      if (a.scheduledTime != null && b.scheduledTime == null) return -1;
-      if (a.scheduledTime == null && b.scheduledTime != null) return 1;
-      return 0;
-    });
-
-    state = tasksList;
-    _syncWidgetAndDnd(tasksList);
+    tasks.sort(
+      (a, b) =>
+          (a.scheduledTime == null
+                  ? 1440
+                  : a.scheduledTime!.hour * 60 + a.scheduledTime!.minute)
+              .compareTo(
+                b.scheduledTime == null
+                    ? 1440
+                    : b.scheduledTime!.hour * 60 + b.scheduledTime!.minute,
+              ),
+    );
+    if (mounted) state = tasks;
+    await syncTasks(tasks);
   }
 
-  void addAdHocTask(String title, TimeOfDay? time, int durationMinutes) async {
-    final newTask = DailyTaskInstance(
-      id: _uuid.v4(),
+  Future<void> loadTodayTasks() => _run('refresh', _refresh);
+
+  Future<void> addAdHocTask(
+    String title,
+    TimeOfDay? time,
+    int durationMinutes, {
+    String? id,
+  }) => _run('add', () async {
+    final task = DailyTaskInstance(
+      id: id ?? const Uuid().v4(),
       routineTaskId: null,
-      date: DateTime.now(),
+      date: clock(),
       title: title,
       taskType: TaskType.adhoc,
       scheduledTime: time,
@@ -137,237 +178,151 @@ class TodayTasksNotifier extends StateNotifier<List<DailyTaskInstance>> {
       isBufferBlock: false,
       enableDND: false,
     );
+    await repo.save(task);
+    await _publishAndRemind(task);
+  });
 
-    await repo.save(newTask);
-    await NotificationService().scheduleTaskNotifications(newTask);
-
-    final newState = [...state, newTask];
-    newState.sort((a, b) {
-      if (a.scheduledTime != null && b.scheduledTime != null) {
-        final aMin = a.scheduledTime!.hour * 60 + a.scheduledTime!.minute;
-        final bMin = b.scheduledTime!.hour * 60 + b.scheduledTime!.minute;
-        return aMin.compareTo(bMin);
-      }
-      if (a.scheduledTime != null && b.scheduledTime == null) return -1;
-      if (a.scheduledTime == null && b.scheduledTime != null) return 1;
-      return 0;
-    });
-    state = newState;
-    _syncWidgetAndDnd(newState);
-  }
-
-  void startTask(String id) async {
-    final taskIndex = state.indexWhere((t) => t.id == id);
-    if (taskIndex != -1) {
-      final oldTask = state[taskIndex];
-      final newTask = DailyTaskInstance(
-        id: oldTask.id,
-        routineTaskId: oldTask.routineTaskId,
-        date: oldTask.date,
-        title: oldTask.title,
-        taskType: oldTask.taskType,
-        scheduledTime: oldTask.scheduledTime,
-        flexWindowStart: oldTask.flexWindowStart,
-        flexWindowEnd: oldTask.flexWindowEnd,
-        durationMinutes: oldTask.durationMinutes,
-        status: TaskStatus.inProgress,
-        completedAt: oldTask.completedAt,
-        rescheduledToDate: oldTask.rescheduledToDate,
-        isBufferBlock: oldTask.isBufferBlock,
-        enableDND: oldTask.enableDND,
-        notificationId: oldTask.notificationId,
+  Future<void> _publishAndRemind(DailyTaskInstance task) async {
+    // Publish committed data even when a platform side effect fails. The UI reports
+    // the failure and a retry can safely repeat cancellation/scheduling by task ID.
+    try {
+      await cancelReminder(task.id);
+      if (task.status == TaskStatus.pending) await scheduleReminder(task);
+    } finally {
+      final tasks = repo.getTasksForDate(clock());
+      tasks.sort(
+        (a, b) =>
+            (a.scheduledTime == null
+                    ? 1440
+                    : a.scheduledTime!.hour * 60 + a.scheduledTime!.minute)
+                .compareTo(
+                  b.scheduledTime == null
+                      ? 1440
+                      : b.scheduledTime!.hour * 60 + b.scheduledTime!.minute,
+                ),
       );
-
-      await repo.save(newTask);
-
-      final newState = [...state];
-      newState[taskIndex] = newTask;
-      state = newState;
-      _syncWidgetAndDnd(newState);
+      if (mounted) state = tasks;
+      await syncTasks(tasks);
     }
   }
 
-  void markTaskDone(String id) async {
-    final taskIndex = state.indexWhere((t) => t.id == id);
-    if (taskIndex != -1) {
-      final oldTask = state[taskIndex];
-      final newTask = DailyTaskInstance(
-        id: oldTask.id,
-        routineTaskId: oldTask.routineTaskId,
-        date: oldTask.date,
-        title: oldTask.title,
-        taskType: oldTask.taskType,
-        scheduledTime: oldTask.scheduledTime,
-        flexWindowStart: oldTask.flexWindowStart,
-        flexWindowEnd: oldTask.flexWindowEnd,
-        durationMinutes: oldTask.durationMinutes,
-        status: TaskStatus.done,
-        completedAt: DateTime.now(),
-        rescheduledToDate: oldTask.rescheduledToDate,
-        isBufferBlock: oldTask.isBufferBlock,
-        enableDND: oldTask.enableDND,
-        notificationId: oldTask.notificationId,
-      );
+  Future<void> _status(String id, TaskStatus status) => _run(id, () async {
+    final task = repo
+        .getTasksForDate(clock())
+        .where((t) => t.id == id)
+        .firstOrNull;
+    if (task == null) return;
+    var updated = _copy(
+      task,
+      status,
+      completedAt: status == TaskStatus.done ? clock() : null,
+    );
+    if (status == TaskStatus.pending && _overdue(updated))
+      updated = _copy(updated, TaskStatus.missed);
+    await repo.save(updated);
+    await _publishAndRemind(updated);
+  });
 
-      await repo.save(newTask);
-      await NotificationService().cancelTaskNotifications(newTask.id);
+  Future<void> startTask(String id) => _status(id, TaskStatus.inProgress);
+  Future<void> markTaskDone(String id) => _status(id, TaskStatus.done);
+  Future<void> markTaskSkipped(String id) => _status(id, TaskStatus.skipped);
+  Future<void> restoreTask(String id) => _status(id, TaskStatus.pending);
+  Future<void> dismissBuffer(String id) => markTaskSkipped(id);
 
-      final newState = [...state];
-      newState[taskIndex] = newTask;
-      state = newState;
-      _syncWidgetAndDnd(newState);
+  Future<void> rescheduleTask(String id, DateTime toDate) => _run(id, () async {
+    final old = repo
+        .getTasksForDate(clock())
+        .where((t) => t.id == id)
+        .firstOrNull;
+    if (old == null) return;
+    final destination = DateTime(toDate.year, toDate.month, toDate.day);
+    final today = clock();
+    if (destination.isBefore(DateTime(today.year, today.month, today.day))) {
+      throw ArgumentError('Choose today or a future date.');
     }
-  }
-
-  void markTaskSkipped(String id) async {
-    final taskIndex = state.indexWhere((t) => t.id == id);
-    if (taskIndex == -1) return;
-    final oldTask = state[taskIndex];
-    final updated = DailyTaskInstance(
-      id: oldTask.id,
-      routineTaskId: oldTask.routineTaskId,
-      date: oldTask.date,
-      title: oldTask.title,
-      taskType: oldTask.taskType,
-      scheduledTime: oldTask.scheduledTime,
-      flexWindowStart: oldTask.flexWindowStart,
-      flexWindowEnd: oldTask.flexWindowEnd,
-      durationMinutes: oldTask.durationMinutes,
-      status: TaskStatus.skipped,
-      completedAt: DateTime.now(),
-      rescheduledToDate: oldTask.rescheduledToDate,
-      isBufferBlock: oldTask.isBufferBlock,
-      enableDND: oldTask.enableDND,
-      notificationId: oldTask.notificationId,
-    );
-    await repo.save(updated);
-    await NotificationService().cancelTaskNotifications(id);
-    final newState = [...state];
-    newState[taskIndex] = updated;
-    state = newState;
-    _syncWidgetAndDnd(newState);
-  }
-
-  void rescheduleTask(String id, DateTime toDate) async {
-    final taskIndex = state.indexWhere((t) => t.id == id);
-    if (taskIndex == -1) return;
-    final oldTask = state[taskIndex];
-    final updated = DailyTaskInstance(
-      id: oldTask.id,
-      routineTaskId: oldTask.routineTaskId,
-      date: oldTask.date,
-      title: oldTask.title,
-      taskType: oldTask.taskType,
-      scheduledTime: oldTask.scheduledTime,
-      flexWindowStart: oldTask.flexWindowStart,
-      flexWindowEnd: oldTask.flexWindowEnd,
-      durationMinutes: oldTask.durationMinutes,
-      status: TaskStatus.rescheduled,
-      completedAt: DateTime.now(),
-      rescheduledToDate: toDate,
-      isBufferBlock: oldTask.isBufferBlock,
-      enableDND: oldTask.enableDND,
-      notificationId: oldTask.notificationId,
-    );
-    // Save the rescheduled original
-    await repo.save(updated);
-    await NotificationService().cancelTaskNotifications(id);
-
-    // Create a new instance on the target date
-    final rescheduledInstance = DailyTaskInstance(
-      id: _uuid.v4(),
-      routineTaskId: oldTask.routineTaskId,
-      date: toDate,
-      title: oldTask.title,
-      taskType: oldTask.taskType,
-      scheduledTime: oldTask.scheduledTime,
-      flexWindowStart: oldTask.flexWindowStart,
-      flexWindowEnd: oldTask.flexWindowEnd,
-      durationMinutes: oldTask.durationMinutes,
+    // A stable destination ID makes retries idempotent, including service failures.
+    final task = DailyTaskInstance(
+      id: '${old.id}_rescheduled_${destination.toIso8601String()}',
+      routineTaskId: old.routineTaskId,
+      date: destination,
+      title: old.title,
+      taskType: old.taskType,
+      scheduledTime: old.scheduledTime,
+      flexWindowStart: old.flexWindowStart,
+      flexWindowEnd: old.flexWindowEnd,
+      durationMinutes: old.durationMinutes,
       status: TaskStatus.pending,
       isBufferBlock: false,
-      enableDND: oldTask.enableDND,
+      enableDND: old.enableDND,
     );
-    await repo.save(rescheduledInstance);
-
-    final newState = [...state];
-    newState[taskIndex] = updated;
-    state = newState;
-    _syncWidgetAndDnd(newState);
-  }
-
-  void dismissBuffer(String id) async {
-    final taskIndex = state.indexWhere((t) => t.id == id);
-    if (taskIndex != -1) {
-      final oldTask = state[taskIndex];
-      final newTask = DailyTaskInstance(
-        id: oldTask.id,
-        routineTaskId: oldTask.routineTaskId,
-        date: oldTask.date,
-        title: oldTask.title,
-        taskType: oldTask.taskType,
-        scheduledTime: oldTask.scheduledTime,
-        flexWindowStart: oldTask.flexWindowStart,
-        flexWindowEnd: oldTask.flexWindowEnd,
-        durationMinutes: oldTask.durationMinutes,
-        status: TaskStatus.skipped,
-        completedAt: DateTime.now(),
-        rescheduledToDate: oldTask.rescheduledToDate,
-        isBufferBlock: oldTask.isBufferBlock,
-        enableDND: oldTask.enableDND,
-        notificationId: oldTask.notificationId,
-      );
-
-      await repo.save(newTask);
-      final newState = [...state];
-      newState[taskIndex] = newTask;
-      state = newState;
-      _syncWidgetAndDnd(newState);
+    await repo.saveAll([
+      _copy(
+        old,
+        TaskStatus.rescheduled,
+        completedAt: clock(),
+        rescheduledToDate: destination,
+      ),
+      task,
+    ]);
+    try {
+      await cancelReminder(old.id);
+      await cancelReminder(task.id);
+      await scheduleReminder(task);
+    } finally {
+      if (mounted) state = repo.getTasksForDate(clock());
+      await syncTasks(state);
     }
-  }
+  });
 
-  void _syncWidgetAndDnd(List<DailyTaskInstance> tasks) {
-    DndService().updateTasks(tasks);
-    WidgetService.syncWidgetState(tasks);
+  static Future<void> _syncWidgetAndDnd(List<DailyTaskInstance> tasks) async {
+    await DndService().updateTasks(
+      tasks
+          .where(
+            (task) =>
+                task.status == TaskStatus.pending ||
+                task.status == TaskStatus.inProgress,
+          )
+          .toList(),
+    );
+    await WidgetService.syncWidgetState(tasks);
   }
 }
 
-final completedTasksProvider = Provider<List<DailyTaskInstance>>((ref) {
-  return ref
+final completedTasksProvider = Provider<List<DailyTaskInstance>>(
+  (ref) => ref
       .watch(todayTasksProvider)
-      .where((t) => t.status == TaskStatus.done)
-      .toList();
-});
-
+      .where((t) => !t.isBufferBlock && t.status == TaskStatus.done)
+      .toList(),
+);
+final skippedTasksProvider = Provider<List<DailyTaskInstance>>(
+  (ref) => ref
+      .watch(todayTasksProvider)
+      .where((t) => !t.isBufferBlock && t.status == TaskStatus.skipped)
+      .toList(),
+);
 final activeTasksProvider = Provider<List<DailyTaskInstance>>((ref) {
-  final allTasks = ref.watch(todayTasksProvider);
-  final activeTasks = <DailyTaskInstance>[];
-
-  for (int i = 0; i < allTasks.length; i++) {
-    final task = allTasks[i];
-
-    // Done and skipped tasks go to the completed toggle, not the active list
-    if (task.status == TaskStatus.done || task.status == TaskStatus.skipped) continue;
-
+  final all = ref.watch(todayTasksProvider);
+  final active = <DailyTaskInstance>[];
+  for (var i = 0; i < all.length; i++) {
+    final task = all[i];
+    if ({
+      TaskStatus.done,
+      TaskStatus.skipped,
+      TaskStatus.rescheduled,
+    }.contains(task.status))
+      continue;
     if (task.isBufferBlock) {
-      DailyTaskInstance? parentTask;
-      for (int j = i - 1; j >= 0; j--) {
-        if (!allTasks[j].isBufferBlock) {
-          parentTask = allTasks[j];
-          break;
-        }
-      }
-
-      if (parentTask != null &&
-          (parentTask.status == TaskStatus.done ||
-              parentTask.status == TaskStatus.skipped ||
-              parentTask.status == TaskStatus.missed)) {
+      final parent = all.take(i).where((t) => !t.isBufferBlock).lastOrNull;
+      if (parent != null &&
+          {
+            TaskStatus.done,
+            TaskStatus.skipped,
+            TaskStatus.missed,
+            TaskStatus.rescheduled,
+          }.contains(parent.status))
         continue;
-      }
     }
-
-    activeTasks.add(task);
+    active.add(task);
   }
-
-  return activeTasks;
+  return active;
 });

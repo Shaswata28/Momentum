@@ -26,6 +26,8 @@ class _QuickAddButtonState extends State<QuickAddButton> {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return GestureDetector(
       onTap: () => _onTap(context),
       onTapDown: (_) => setState(() => _isPressed = true),
@@ -41,12 +43,22 @@ class _QuickAddButtonState extends State<QuickAddButton> {
           padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
           decoration: BoxDecoration(
             color: AppColors.cardBackground,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(14),
             border: Border.all(
               color: _isPressed
-                  ? AppColors.accentPrimary.withValues(alpha: 0.5)
+                  ? AppColors.accentPrimary
                   : AppColors.cardBorder,
+              width: isRetro ? 2.0 : 1.0,
             ),
+            boxShadow: isRetro && !_isPressed
+                ? [
+                    BoxShadow(
+                      color: AppColors.retroShadowColor,
+                      offset: const Offset(3, 3),
+                      blurRadius: 0,
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
@@ -55,8 +67,9 @@ class _QuickAddButtonState extends State<QuickAddButton> {
                 height: 24,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.accentPrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(7),
+                  color: AppColors.accentPrimary.withValues(alpha: isRetro ? 0.2 : 0.12),
+                  borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(7),
+                  border: isRetro ? Border.all(color: AppColors.cardBorder, width: 1.5) : null,
                 ),
                 child: Icon(
                   Icons.add_rounded,
@@ -65,11 +78,13 @@ class _QuickAddButtonState extends State<QuickAddButton> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'Add a task for today...',
-                style: AppTypography.bodyText.copyWith(
-                  color: AppColors.textPlaceholder,
-                  fontSize: 13.5,
+              Expanded(
+                child: Text(
+                  'Add a task for today...',
+                  style: AppTypography.bodyText.copyWith(
+                    color: AppColors.textPlaceholder,
+                    fontSize: 13.5,
+                  ),
                 ),
               ),
             ],

@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'theme/app_theme.dart';
+import 'theme/retro_theme.dart';
 import 'screens/main_layout.dart';
 import 'repositories/hive_init.dart';
 import 'services/notification_service.dart';
 import 'services/dnd_service.dart';
 import 'services/focus_blocker_service.dart';
 import 'package:home_widget/home_widget.dart';
-import 'repositories/daily_task_instance_repository.dart';
-import 'services/widget_service.dart';
+import 'services/native_task_action_service.dart';
 import 'services/month_rollover_service.dart';
 import 'models/enums.dart';
-import 'models/daily_task_instance.dart';
 import 'models/user_settings.dart';
 import 'providers/theme_provider.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -26,49 +28,48 @@ Future<void> backgroundCallback(Uri? uri) async {
 
   if (host == 'done' || host == 'skip') {
     await initHive();
-    final repo = DailyTaskInstanceRepository();
-    final tasks = repo.getTasksForDate(DateTime.now());
-    var task = tasks.where((t) => t.id == taskId).firstOrNull;
-    if (task != null) {
-      final updatedTask = DailyTaskInstance(
-        id: task.id,
-        routineTaskId: task.routineTaskId,
-        date: task.date,
-        title: task.title,
-        taskType: task.taskType,
-        scheduledTime: task.scheduledTime,
-        flexWindowStart: task.flexWindowStart,
-        flexWindowEnd: task.flexWindowEnd,
-        durationMinutes: task.durationMinutes,
-        status: host == 'done' ? TaskStatus.done : TaskStatus.skipped,
-        completedAt: DateTime.now(),
-        rescheduledToDate: task.rescheduledToDate,
-        isBufferBlock: task.isBufferBlock,
-        enableDND: task.enableDND,
-        notificationId: task.notificationId,
-      );
-      await repo.save(updatedTask);
-
-      if (host == 'done') {
-        await NotificationService().cancelTaskNotifications(taskId);
-      }
-      await NotificationService().cancelLiveTaskNotification();
-
-      final updatedTasks = repo.getTasksForDate(DateTime.now());
-      await WidgetService.syncWidgetState(updatedTasks);
-    }
+    await NativeTaskActionService.apply(
+      taskId,
+      host == 'done' ? TaskStatus.done : TaskStatus.skipped,
+    );
   }
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // All five existing font families are bundled for first-launch offline use.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    for (final family in [
+      'dmsans',
+      'jetbrainsmono',
+      'pressstart2p',
+      'pixelifysans',
+      'vt323',
+    ]) {
+      final license = await rootBundle.loadString(
+        'assets/fonts/$family-OFL.txt',
+      );
+      yield LicenseEntryWithLineBreaks([family], license);
+    }
+  });
+
   await initHive();
+  NativeTaskActionService.startListening();
   await MonthRolloverService().checkAndRollover();
 
   final ns = NotificationService();
-  await ns.init();
-  await ns.requestPermissions();
-  await ns.scheduleEODPrompt();
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    try {
+      await ns.init();
+      await ns.scheduleEODPrompt();
+    } on PlatformException catch (error) {
+      debugPrint('Notifications unavailable at startup: $error');
+    } on MissingPluginException catch (error) {
+      debugPrint('Notifications unavailable on this platform: $error');
+    }
+  }
 
   final dnd = DndService();
   await dnd.init();
@@ -86,7 +87,7 @@ class DailyTrackerApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final appThemeMode = ref.watch(themeModeProvider);
     final brightness = MediaQuery.platformBrightnessOf(context);
     ref.read(themeModeProvider.notifier).updateSystemBrightness(brightness);
 
@@ -94,14 +95,58 @@ class DailyTrackerApp extends ConsumerWidget {
     final settings = settingsBox.get('user');
     final isFirstLaunch = settings == null || settings.isFirstLaunch;
 
+    final ThemeData lightTheme;
+    final ThemeData darkTheme;
+    final ThemeMode themeMode;
+
+    switch (appThemeMode) {
+      case AppThemeMode.system:
+        lightTheme = AppTheme.lightTheme;
+        darkTheme = AppTheme.darkTheme;
+        themeMode = ThemeMode.system;
+        break;
+      case AppThemeMode.light:
+        lightTheme = AppTheme.lightTheme;
+        darkTheme = AppTheme.darkTheme;
+        themeMode = ThemeMode.light;
+        break;
+      case AppThemeMode.dark:
+        lightTheme = AppTheme.lightTheme;
+        darkTheme = AppTheme.darkTheme;
+        themeMode = ThemeMode.dark;
+        break;
+      case AppThemeMode.retroLight:
+        lightTheme = RetroTheme.lightTheme;
+        darkTheme = RetroTheme.lightTheme;
+        themeMode = ThemeMode.light;
+        break;
+      case AppThemeMode.retroDark:
+        lightTheme = RetroTheme.darkTheme;
+        darkTheme = RetroTheme.darkTheme;
+        themeMode = ThemeMode.dark;
+        break;
+    }
+
+    // In retro mode: clamp text scaling to 1.0 — pixel fonts (Press Start 2P,
+    // Pixelify Sans, VT323) are monospace bitmap-style fonts that break badly
+    // at large system font scales. Classic mode allows up to 1.3× for
+    // accessibility while still preventing extreme overflow.
+    final double maxRetroScale = appThemeMode.isRetro ? 1.0 : 1.3;
+
     return MaterialApp(
       title: 'Momentum',
       navigatorKey: FocusBlockerService.navigatorKey,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: themeMode,
-      home: isFirstLaunch ? const OnboardingScreen() : const MainLayout(),
       debugShowCheckedModeBanner: false,
+      // builder runs inside MaterialApp after MediaQuery is established,
+      // so withClampedTextScaling can read and override the system text scale.
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: maxRetroScale,
+        child: child!,
+      ),
+      home: isFirstLaunch ? const OnboardingScreen() : const MainLayout(),
     );
   }
 }

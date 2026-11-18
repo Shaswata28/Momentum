@@ -19,6 +19,17 @@ enum ExpenseType {
   @HiveField(6) shopping,
   @HiveField(7) fees,
   @HiveField(8) other,
+  @HiveField(9) internet,
+  @HiveField(10) mobileBill,
+  @HiveField(11) medicine,
+  @HiveField(12) grocery,
+  @HiveField(13) food,
+  @HiveField(14) cigarette,
+  @HiveField(15) tour,
+  @HiveField(16) entertainment,
+  @HiveField(17) rent,
+  @HiveField(18) utilities,
+  @HiveField(19) education,
 }
 
 @HiveType(typeId: 9)
@@ -28,6 +39,12 @@ enum IncomeSource {
   @HiveField(2) other,
   @HiveField(3) work,
   @HiveField(4) gift,
+  @HiveField(5) salary,
+  @HiveField(6) oddJob,
+  @HiveField(7) bonus,
+  @HiveField(8) business,
+  @HiveField(9) investment,
+  @HiveField(10) rental,
 }
 
 @HiveType(typeId: 10)

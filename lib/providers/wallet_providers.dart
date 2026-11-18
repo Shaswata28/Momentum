@@ -4,8 +4,14 @@ import '../repositories/wallet_repository.dart';
 import '../models/transaction.dart';
 import '../models/month_summary.dart';
 import '../models/fixed_expense.dart';
+import '../models/saving_goal.dart';
+import 'review_providers.dart' show localTimeProvider;
 
-final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '৳', decimalDigits: 2);
+final currencyFormat = NumberFormat.currency(
+  locale: 'en_US',
+  symbol: '৳',
+  decimalDigits: 2,
+);
 
 final walletRepositoryProvider = Provider((ref) => WalletRepository());
 
@@ -21,7 +27,30 @@ final selectedMonthIdProvider = Provider<String>((ref) {
 });
 
 final currentMonthIdProvider = Provider<String>((ref) {
-  return ref.watch(selectedMonthIdProvider);
+  final now = ref.watch(localTimeProvider).valueOrNull ?? DateTime.now();
+  return WalletRepository.monthIdForDate(now);
+});
+
+final selectedMonthSummaryProvider = Provider<MonthSummary?>((ref) {
+  return ref
+      .watch(walletRepositoryProvider)
+      .getMonthSummary(ref.watch(selectedMonthIdProvider));
+});
+
+final selectedTransactionsProvider = Provider<List<Transaction>>((ref) {
+  final txs = ref
+      .watch(walletRepositoryProvider)
+      .getTransactionsForMonth(ref.watch(selectedMonthIdProvider));
+  txs.sort((a, b) => b.date.compareTo(a.date));
+  return txs;
+});
+
+final selectedRunningBalanceProvider = Provider<double>((ref) {
+  ref.watch(selectedTransactionsProvider);
+  ref.watch(selectedMonthSummaryProvider);
+  return ref
+      .watch(walletRepositoryProvider)
+      .computeRunningBalance(ref.watch(selectedMonthIdProvider));
 });
 
 final currentMonthSummaryProvider = Provider<MonthSummary?>((ref) {
@@ -47,11 +76,17 @@ final fixedExpensesProvider = Provider<List<FixedExpense>>((ref) {
   return expenses;
 });
 
+final savingGoalsProvider = Provider<List<SavingGoal>>((ref) {
+  final repo = ref.watch(walletRepositoryProvider);
+  return repo.getAllSavingGoals();
+});
+
 final runningBalanceProvider = Provider<double>((ref) {
   final repo = ref.watch(walletRepositoryProvider);
   final monthId = ref.watch(currentMonthIdProvider);
   // Force dependency on transactions so this recomputes on every add/delete
   ref.watch(currentTransactionsProvider);
+  ref.watch(currentMonthSummaryProvider);
   return repo.computeRunningBalance(monthId);
 });
 
@@ -75,12 +110,24 @@ class MonthlyTotals {
 final monthlyTotalsProvider = Provider<MonthlyTotals>((ref) {
   final txs = ref.watch(currentTransactionsProvider);
   final repo = ref.watch(walletRepositoryProvider);
+  return _monthlyTotals(txs, repo);
+});
+
+final selectedMonthlyTotalsProvider = Provider<MonthlyTotals>((ref) {
+  return _monthlyTotals(
+    ref.watch(selectedTransactionsProvider),
+    ref.watch(walletRepositoryProvider),
+  );
+});
+
+MonthlyTotals _monthlyTotals(List<Transaction> txs, WalletRepository repo) {
   double income = 0;
   double expense = 0;
 
   for (final t in txs) {
     if (t.isSettled &&
-        (t.expenseType == ExpenseType.borrowed || t.expenseType == ExpenseType.lent) &&
+        (t.expenseType == ExpenseType.borrowed ||
+            t.expenseType == ExpenseType.lent) &&
         !repo.hasSettledCounterpart(t.id)) {
       continue;
     }
@@ -96,12 +143,18 @@ final monthlyTotalsProvider = Provider<MonthlyTotals>((ref) {
     totalExpense: expense,
     netSavings: income - expense,
   );
-});
+}
 
 final dailySpendingProvider = Provider<Map<int, double>>((ref) {
   final txs = ref.watch(currentTransactionsProvider);
+  final repo = ref.watch(walletRepositoryProvider);
   final map = <int, double>{};
   for (final t in txs) {
+    if (t.isSettled &&
+        (t.expenseType == ExpenseType.borrowed ||
+            t.expenseType == ExpenseType.lent) &&
+        !repo.hasSettledCounterpart(t.id))
+      continue;
     if (t.direction == Direction.expense) {
       map[t.date.day] = (map[t.date.day] ?? 0) + t.amount;
     }
@@ -115,26 +168,36 @@ class WalletNotifier extends StateNotifier<void> {
 
   WalletNotifier(this.repo, this.ref) : super(null);
 
+  void refresh() {
+    ref.invalidate(currentTransactionsProvider);
+    ref.invalidate(currentMonthSummaryProvider);
+    ref.invalidate(runningBalanceProvider);
+    ref.invalidate(selectedTransactionsProvider);
+    ref.invalidate(selectedMonthSummaryProvider);
+    ref.invalidate(selectedRunningBalanceProvider);
+    ref.invalidate(fixedExpensesProvider);
+    ref.invalidate(savingGoalsProvider);
+  }
+
   Future<void> addTransaction(Transaction tx) async {
     await repo.saveTransaction(tx);
-    ref.invalidate(currentTransactionsProvider);
-    ref.invalidate(runningBalanceProvider);
-    ref.invalidate(currentMonthSummaryProvider);
+    refresh();
   }
 
   Future<void> deleteTransaction(String id) async {
     await repo.deleteTransaction(id);
-    ref.invalidate(currentTransactionsProvider);
-    ref.invalidate(runningBalanceProvider);
-    ref.invalidate(currentMonthSummaryProvider);
+    refresh();
   }
 
   Future<void> settleTransaction(Transaction iou) async {
     final newId = '${iou.id}_settled';
     await repo.settleTransaction(iou, newId);
-    ref.invalidate(currentTransactionsProvider);
-    ref.invalidate(runningBalanceProvider);
-    ref.invalidate(currentMonthSummaryProvider);
+    refresh();
+  }
+
+  Future<void> payFixedExpense(FixedExpense expense) async {
+    await repo.payFixedExpense(expense);
+    refresh();
   }
 
   Future<void> addFixedExpense(FixedExpense expense) async {
@@ -146,8 +209,33 @@ class WalletNotifier extends StateNotifier<void> {
     await repo.deleteFixedExpense(id);
     ref.invalidate(fixedExpensesProvider);
   }
+
+  Future<void> addSavingGoal(SavingGoal goal) async {
+    await repo.saveSavingGoal(goal);
+    ref.invalidate(savingGoalsProvider);
+  }
+
+  Future<void> deleteSavingGoal(String id) async {
+    await repo.deleteSavingGoal(id);
+    refresh();
+  }
+
+  Future<void> addSavingGoalDeposit({
+    required String goalId,
+    required String monthKey,
+    required double amount,
+  }) async {
+    await repo.addSavingGoalDeposit(
+      goalId: goalId,
+      monthKey: monthKey,
+      amount: amount,
+    );
+    refresh();
+  }
 }
 
-final walletNotifierProvider = StateNotifierProvider<WalletNotifier, void>((ref) {
+final walletNotifierProvider = StateNotifierProvider<WalletNotifier, void>((
+  ref,
+) {
   return WalletNotifier(ref.watch(walletRepositoryProvider), ref);
 });

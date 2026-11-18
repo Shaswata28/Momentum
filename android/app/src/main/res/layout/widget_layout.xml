@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="#0D0D0F"
+    android:background="@drawable/widget_background"
     android:padding="16dp">
 
     <!-- Left Half: Current Task (Card Surface) -->
@@ -14,7 +14,7 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center_vertical"
-        android:background="#121217"
+        android:background="@drawable/widget_card"
         android:padding="12dp">
 
         <TextView
@@ -22,7 +22,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="CURRENT"
-            android:textColor="#888898"
+            android:textColor="@color/widget_secondary"
             android:textSize="11sp"
             android:fontFamily="monospace"
             android:textStyle="bold"/>
@@ -32,7 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="No Active Tasks"
-            android:textColor="#F0F0F5"
+            android:textColor="@color/widget_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-medium"
@@ -41,31 +41,32 @@
             android:layout_marginTop="4dp"
             android:layout_marginBottom="12dp"/>
 
-        <ProgressBar
+        <ImageView
             android:id="@+id/progress_current"
-            style="@android:style/Widget.ProgressBar.Horizontal"
             android:layout_width="match_parent"
             android:layout_height="4dp"
-            android:max="100"
-            android:progress="0"
-            android:progressDrawable="@drawable/widget_progress"/>
+            android:scaleType="fitXY"
+            android:importantForAccessibility="yes"
+            android:src="@drawable/widget_progress"/>
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/widget_divider"
         android:layout_width="1dp"
         android:layout_height="match_parent"
-        android:background="#1A1A24"
+        android:background="@color/widget_track"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"/>
 
     <!-- Right Half: Next Task -->
     <LinearLayout
+        android:id="@+id/layout_next_task"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center_vertical"
-        android:background="#121217"
+        android:background="@drawable/widget_card"
         android:padding="12dp">
 
         <TextView
@@ -73,7 +74,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="NEXT"
-            android:textColor="#888898"
+            android:textColor="@color/widget_secondary"
             android:textSize="11sp"
             android:fontFamily="monospace"
             android:textStyle="bold"/>
@@ -83,7 +84,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="No upcoming task"
-            android:textColor="#888898"
+            android:textColor="@color/widget_secondary"
             android:textSize="13sp"
             android:fontFamily="sans-serif-medium"
             android:maxLines="1"
@@ -95,7 +96,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="--:--"
-            android:textColor="#888898"
+            android:textColor="@color/widget_secondary"
             android:textSize="11sp"
             android:fontFamily="monospace"
             android:layout_marginTop="2dp"/>
@@ -111,7 +112,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0 / 0 done"
-            android:textColor="#F0F0F5"
+            android:textColor="@color/widget_primary"
             android:textSize="12sp"
             android:fontFamily="monospace"
             android:layout_gravity="end"/>

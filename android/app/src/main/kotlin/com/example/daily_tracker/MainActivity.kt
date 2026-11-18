@@ -13,6 +13,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
 import io.flutter.embedding.android.FlutterActivity
@@ -59,6 +60,16 @@ class MainActivity : FlutterActivity() {
                             result.error("SETTINGS_ERROR", e.localizedMessage, null)
                         }
                     }
+                    "openAppSettings" -> {
+                        try {
+                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", packageName, null)
+                            })
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("SETTINGS_ERROR", e.localizedMessage, null)
+                        }
+                    }
                     "updateBlockedApps" -> {
                         val packages = call.argument<List<String>>("packages") ?: emptyList()
                         prefs.edit().putStringSet(FocusBlockerService.KEY_BLOCKED_PACKAGES, packages.toSet()).apply()
@@ -67,7 +78,7 @@ class MainActivity : FlutterActivity() {
                     "setFocusState" -> {
                         val isActive = call.argument<Boolean>("isActive") ?: false
                         val taskName = call.argument<String>("taskName") ?: "Focus Task"
-                        val endTimeMs = call.argument<Long>("endTimeMs") ?: 0L
+                        val endTimeMs = call.argument<Number>("endTimeMs")?.toLong() ?: 0L
 
                         prefs.edit()
                             .putBoolean(FocusBlockerService.KEY_IS_DND_ACTIVE, isActive)
@@ -77,7 +88,7 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                     "useEmergencyPass" -> {
-                        val minutes = call.argument<Int>("minutes") ?: 5
+                        val minutes = call.argument<Number>("minutes")?.toInt() ?: 5
                         val targetPackage = call.argument<String>("targetPackage")
                         val passUntil = System.currentTimeMillis() + (minutes * 60 * 1000L)
 

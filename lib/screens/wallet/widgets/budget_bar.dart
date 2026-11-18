@@ -21,30 +21,46 @@ class BudgetBar extends StatelessWidget {
         ? AppColors.errorAlert
         : (nearLimit ? AppColors.warningTag : AppColors.accentPrimary);
 
+    final isRetro = AppColors.isRetro;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(18),
         border: Border.all(
           color: over
-              ? AppColors.errorAlert.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.07),
+              ? AppColors.errorAlert
+              : (isRetro
+                    ? AppColors.cardBorder
+                    : Colors.white.withValues(alpha: 0.07)),
+          width: isRetro ? 2.0 : 1.0,
         ),
+        boxShadow: isRetro
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(3, 3),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      shape: isRetro ? BoxShape.rectangle : BoxShape.circle,
                       color: barColor,
                     ),
                   ),
@@ -75,6 +91,33 @@ class BudgetBar extends StatelessWidget {
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOutCubic,
             builder: (context, val, _) {
+              if (isRetro) {
+                const segmentCount = 12;
+                final filledSegments = (val * segmentCount).round();
+                return Row(
+                  children: List.generate(segmentCount, (i) {
+                    final isFilled = i < filledSegments;
+                    return Expanded(
+                      child: Container(
+                        height: 10,
+                        margin: EdgeInsets.only(
+                          right: i < segmentCount - 1 ? 3 : 0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isFilled
+                              ? barColor
+                              : AppColors.cardHoverActive,
+                          border: Border.all(
+                            color: AppColors.cardBorder,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              }
+
               return ClipRRect(
                 borderRadius: BorderRadius.circular(5),
                 child: LinearProgressIndicator(
@@ -87,31 +130,32 @@ class BudgetBar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
-                child: Text(
-                  currencyFormat.format(spent),
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.scoreStat.copyWith(
-                    color: over ? AppColors.errorAlert : AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                currencyFormat.format(spent),
+                style: AppTypography.scoreStat.copyWith(
+                  color: over ? AppColors.errorAlert : AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              Flexible(
-                child: Text(
-                  'Limit: ${currencyFormat.format(limit)}',
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
+              Text(
+                'Limit: ${currencyFormat.format(limit)}',
+                textAlign: TextAlign.end,
+                style: AppTypography.bodyText.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+              if (over)
+                Text(
+                  'Over budget by ${currencyFormat.format(spent - limit)}',
                   style: AppTypography.bodyText.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    color: AppColors.errorAlert,
                   ),
                 ),
-              ),
             ],
           ),
         ],

@@ -23,8 +23,7 @@ class WidgetRefreshWorker(
         if (ids.isNotEmpty()) {
             // Delegate to the existing provider — it reads SharedPreferences and redraws
             val provider = DailyTrackerWidgetProvider()
-            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            provider.onUpdate(context, appWidgetManager, ids, prefs)
+            provider.onUpdate(context, appWidgetManager, ids)
         }
         return Result.success()
     }

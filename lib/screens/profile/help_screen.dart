@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../theme/retro_typography.dart';
+import '../../widgets/app_back_button.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Help & Guide Screen
+//  Help & Feature Guide Screen — Momentum v2.0
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HelpScreen extends StatelessWidget {
@@ -12,36 +14,27 @@ class HelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return Scaffold(
       backgroundColor: AppColors.appBackground,
       appBar: AppBar(
         backgroundColor: AppColors.appBackground,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        leading: GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            Navigator.pop(context);
-          },
-          child: Container(
-            width: 36,
-            height: 36,
-            margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-            ),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary,
-              size: 16,
-            ),
-          ),
+        leadingWidth: 64,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 20),
+          child: Center(child: AppBackButton()),
         ),
         title: Text(
-          'Help & Guide',
-          style: AppTypography.displayHeading.copyWith(fontSize: 22),
+          isRetro ? 'FEATURE GUIDE v2.0' : 'Help & Feature Guide',
+          style: isRetro
+              ? RetroTypography.displayHeading.copyWith(fontSize: 13)
+              : AppTypography.displayHeading.copyWith(
+                  fontSize: 22,
+                  letterSpacing: -0.4,
+                ),
         ),
       ),
       body: ListView(
@@ -52,7 +45,7 @@ class HelpScreen extends StatelessWidget {
           const _Intro(),
           const SizedBox(height: 28),
 
-          // ── Routine & Tasks ───────────────────────────────────────────────
+          // ── 1. Routine & Tasks ─────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.repeat_rounded,
             label: 'ROUTINE & TASKS',
@@ -61,22 +54,31 @@ class HelpScreen extends StatelessWidget {
           const SizedBox(height: 12),
           const _HelpCard(
             icon: Icons.construction_outlined,
-            title: 'Building your daily routine',
+            title: 'Building your weekly routine',
             body:
-                'Head over to Profile > Routine Builder to set up your weekly routine! You can schedule recurring tasks for specific days of the week.\n\n'
-                'Momentum automatically generates your daily task list for you every morning based on what day it is.',
+                'Head over to Settings > Routine Builder to craft your weekly routine! Use the 6-step task wizard to set repeating days, start times, durations, buffer intervals, and custom color tags.\n\n'
+                'Momentum automatically generates your daily task timeline for you every morning based on what day it is.',
+          ),
+          const _HelpCard(
+            icon: Icons.category_outlined,
+            title: 'Fixed, Floating & Ad-hoc tasks',
+            body:
+                'Momentum separates your schedule into 3 task types:\n\n'
+                '• Fixed Tasks: Anchored to specific clock times (e.g. 9:00 AM Meeting, Gym). Can trigger DND & Focus Shield.\n'
+                '• Floating Tasks: Flexible daily habits with a set duration (e.g. 30 min Reading) that you can tackle anytime.\n'
+                '• Ad-hoc Tasks: Quick, flexible check-ins without strict time bounds.',
           ),
           const _HelpCard(
             icon: Icons.add_circle_outline,
             title: 'Adding a quick temporary task',
             body:
                 'Need to remember something just for today? Tap the "Add a task for today..." bar on your Today screen.\n\n'
-                'It\'s perfect for one-off tasks like "Call plumber" or "Pick up a parcel" that don\'t belong in your permanent weekly routine.',
+                'It\'s perfect for one-off tasks like "Call plumber" or "Pick up parcel" that don\'t belong in your permanent weekly routine.',
           ),
 
           const SizedBox(height: 28),
 
-          // ── Wallet ────────────────────────────────────────────────────────
+          // ── 2. Wallet & Finance ────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.account_balance_wallet_outlined,
             label: 'WALLET & FINANCE',
@@ -85,26 +87,40 @@ class HelpScreen extends StatelessWidget {
           const SizedBox(height: 12),
           const _HelpCard(
             icon: Icons.tune_rounded,
-            title: 'Setting up your Wallet',
+            title: 'Setting up your Wallet & Budget',
             body:
                 'To configure your finances, tap the tune icon at the top of the Wallet screen. '
                 'Set your starting cash balance, define a Monthly Budget Limit to track against, '
                 'and set a Semester Savings Target to visualize your savings milestones.',
           ),
           const _HelpCard(
-            icon: Icons.receipt_long_outlined,
-            title: 'Handling fixed bills',
+            icon: Icons.auto_awesome_rounded,
+            title: 'Smart Category Auto-Detection',
             body:
-                'Got rent, subscriptions, or utility bills? Add them to the Fixed Bills section.\n\n'
-                'Each month, a single-tap "Pay" button lets you record payment instantly, checking it off your list and updating your ledger.',
+                'When recording an income or expense, simply type in the note field (e.g. "uber", "coffee", "salary", "groceries", "dinner").\n\n'
+                'Momentum automatically infers and selects the matching category for you in real-time!',
+          ),
+          const _HelpCard(
+            icon: Icons.swap_horiz_rounded,
+            title: 'Borrow & Lend Ledger',
+            body:
+                'Easily track money borrowed from or lent to colleagues and friends. '
+                'Record the counterparty note, see net balances at a glance, and mark debts as settled with a single tap once repaid.',
+          ),
+          const _HelpCard(
+            icon: Icons.receipt_long_outlined,
+            title: 'Handling fixed bills & subscriptions',
+            body:
+                'Got rent, subscriptions, internet, or utilities? Add them to the Fixed Bills section.\n\n'
+                'Each month, a single-tap "Pay" button records the payment instantly into your transaction ledger and marks the bill paid.',
           ),
 
           const SizedBox(height: 28),
 
-          // ── Focus & Shield ────────────────────────────────────────────────
+          // ── 3. Focus & Shield ──────────────────────────────────────────────
           _GroupHeader(
             icon: Icons.shield_outlined,
-            label: 'FOCUS SHIELD',
+            label: 'FOCUS SHIELD & DND',
             color: AppColors.accentPrimary,
           ),
           const SizedBox(height: 12),
@@ -115,13 +131,45 @@ class HelpScreen extends StatelessWidget {
                 'Focus Shield automatically blocks distracting apps when you are inside an active DND task.\n\n'
                 'If you open a blocked app, a calming mindful friction screen encourages you to pause and return to deep work, with 3 emergency passes per day.',
           ),
+          const _HelpCard(
+            icon: Icons.notifications_off_outlined,
+            title: 'Automated Do Not Disturb (DND)',
+            body:
+                'When a task with DND enabled starts, Momentum automatically silences notifications and incoming alerts so you can stay in flow. DND turns off automatically when your task duration ends.',
+          ),
 
           const SizedBox(height: 28),
 
-          // ── Insights ──────────────────────────────────────────────────────
+          // ── 4. Themes & Retro Mode ─────────────────────────────────────────
+          _GroupHeader(
+            icon: Icons.videogame_asset_rounded,
+            label: 'THEMES & RETRO MODE (v2.0)',
+            color: AppColors.warningTag,
+          ),
+          const SizedBox(height: 12),
+          const _HelpCard(
+            icon: Icons.palette_outlined,
+            title: 'Retro 8-Bit Console Aesthetic',
+            body:
+                'Momentum v2.0 introduces an authentic retro console theme inspired by NES and Game Boy hardware!\n\n'
+                'Featuring pixel fonts (Press Start 2P, Pixelify Sans, VT323), sharp 2.0px block borders, and authentic tactile offset shadows.',
+          ),
+          const _HelpCard(
+            icon: Icons.brightness_medium_rounded,
+            title: 'Light & Dark Palettes',
+            body:
+                'Choose your visual identity in Settings > Theme & Appearance:\n\n'
+                '• Retro Light: Warm Beige Shell aesthetic (Game Boy / Famicom)\n'
+                '• Retro Dark: Industrial Charcoal Console aesthetic (SNES / Game Boy Pocket)\n'
+                '• Classic Mode: Clean, modern Things 3 inspired interface in Light or Graphite Dark.',
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── 5. Insights & Heatmap ──────────────────────────────────────────
           _GroupHeader(
             icon: Icons.insights_rounded,
-            label: 'INSIGHTS & LOGS',
+            label: 'INSIGHTS & MOMENTUM',
             color: AppColors.floatingTask,
           ),
           const SizedBox(height: 12),
@@ -134,10 +182,32 @@ class HelpScreen extends StatelessWidget {
           ),
           const _HelpCard(
             icon: Icons.grid_on_outlined,
-            title: 'Consistency heatmap & pacing',
+            title: '35-day Consistency Heatmap',
             body:
-                'Insights transforms your daily task completions and EOD logs into a 35-day consistency heatmap.\n\n'
-                'The Wallet tab in Insights calculates your Safe Daily Spending limit so you never run out of budget before month end.',
+                'Insights transforms your daily task completions and EOD logs into a 35-day visual heatmap showing your productivity streaks and energy cycles over time.',
+          ),
+          const _HelpCard(
+            icon: Icons.speed_rounded,
+            title: 'Safe Daily Spending & Pacing',
+            body:
+                'The Wallet tab in Insights calculates your Safe Daily Spending limit dynamically based on days remaining in the month and unallocated budget, ensuring you never run out before month end.',
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── 6. Data & Privacy ──────────────────────────────────────────────
+          _GroupHeader(
+            icon: Icons.lock_outline_rounded,
+            label: 'DATA & PRIVACY',
+            color: AppColors.successDone,
+          ),
+          const SizedBox(height: 12),
+          const _HelpCard(
+            icon: Icons.cloud_off_rounded,
+            title: '100% Offline & Private',
+            body:
+                'Momentum requires no account, connects to no servers, and includes zero trackers or analytics.\n\n'
+                'All routines, financial ledgers, and notes are encrypted and stored solely on your device storage via local Hive databases.',
           ),
         ],
       ),
@@ -154,26 +224,54 @@ class _Intro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.accentPrimary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.2)),
+        color: isRetro
+            ? AppColors.cardBackground
+            : AppColors.accentPrimary.withValues(alpha: 0.08),
+        borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(16),
+        border: Border.all(
+          color: isRetro
+              ? AppColors.cardBorder
+              : AppColors.accentPrimary.withValues(alpha: 0.2),
+          width: isRetro ? 2.0 : 1.0,
+        ),
+        boxShadow: isRetro
+            ? [
+                BoxShadow(
+                  color: AppColors.retroShadowColor,
+                  offset: const Offset(2, 2),
+                  blurRadius: 0,
+                ),
+              ]
+            : null,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline_rounded, color: AppColors.accentPrimary, size: 20),
+          Icon(
+            Icons.lightbulb_outline_rounded,
+            color: AppColors.accentPrimary,
+            size: 20,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Tap any topic below to expand it and read how the system helps you maintain momentum.',
-              style: AppTypography.bodyText.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.45,
-              ),
+              'Welcome to Momentum v2.0! Tap any topic below to expand it and discover all tools designed to help you stay in flow.',
+              style: isRetro
+                  ? RetroTypography.bodyText.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      height: 1.45,
+                    )
+                  : AppTypography.bodyText.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
             ),
           ),
         ],
@@ -196,24 +294,42 @@ class _GroupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRetro = AppColors.isRetro;
+
     return Row(
       children: [
         Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
+            color: isRetro
+                ? color
+                : color.withValues(alpha: 0.12),
+            borderRadius: isRetro ? BorderRadius.zero : BorderRadius.circular(8),
+            border: isRetro
+                ? Border.all(color: AppColors.cardBorder, width: 1.5)
+                : null,
           ),
-          child: Icon(icon, color: color, size: 15),
+          child: Icon(
+            icon,
+            color: isRetro ? Colors.white : color,
+            size: 15,
+          ),
         ),
         const SizedBox(width: 10),
-        Text(
-          label,
-          style: AppTypography.sectionLabel.copyWith(
-            color: color,
-            letterSpacing: 1.0,
-            fontWeight: FontWeight.w700,
+        Expanded(
+          child: Text(
+            label,
+            style: isRetro
+                ? RetroTypography.sectionLabel.copyWith(
+                    color: color,
+                    fontSize: 9,
+                  )
+                : AppTypography.sectionLabel.copyWith(
+                    color: color,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w700,
+                  ),
           ),
         ),
       ],
@@ -242,91 +358,149 @@ class _HelpCardState extends State<_HelpCard> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _expanded = !_expanded);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: _expanded ? AppColors.cardHoverActive : AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: _expanded
-                ? AppColors.accentPrimary.withValues(alpha: 0.3)
-                : Colors.white.withValues(alpha: 0.06),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header row ──────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Icon(
-                    widget.icon,
-                    size: 18,
-                    color: _expanded ? AppColors.accentPrimary : AppColors.textPlaceholder,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: AppTypography.cardTitle.copyWith(
-                        color: _expanded ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14.5,
-                      ),
-                    ),
-                  ),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 20,
-                      color: _expanded ? AppColors.accentPrimary : AppColors.textPlaceholder,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    final isRetro = AppColors.isRetro;
 
-            // ── Expandable body ─────────────────────────────────────────────
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOutCubic,
-              alignment: Alignment.topCenter,
-              child: _expanded
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Divider(
-                            height: 1,
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            widget.body,
-                            style: AppTypography.bodyText.copyWith(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                              height: 1.55,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+    return Semantics(
+      button: true,
+      expanded: _expanded,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _expanded = !_expanded);
+        },
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: _expanded
+                ? (isRetro ? AppColors.inputBackground : AppColors.cardHoverActive)
+                : AppColors.cardBackground,
+            borderRadius: isRetro
+                ? BorderRadius.zero
+                : BorderRadius.circular(14),
+            border: Border.all(
+              color: isRetro
+                  ? AppColors.cardBorder
+                  : (_expanded
+                      ? AppColors.accentPrimary.withValues(alpha: 0.3)
+                      : AppColors.cardBorder),
+              width: isRetro ? 2.0 : 1.0,
             ),
-          ],
+            boxShadow: isRetro
+                ? [
+                    BoxShadow(
+                      color: AppColors.retroShadowColor,
+                      offset: const Offset(2, 2),
+                      blurRadius: 0,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header row ──────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 18,
+                      color: _expanded
+                          ? AppColors.accentPrimary
+                          : (isRetro
+                              ? AppColors.textPrimary
+                              : AppColors.textPlaceholder),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: isRetro
+                            ? RetroTypography.cardTitle.copyWith(
+                                color: _expanded
+                                    ? AppColors.accentPrimary
+                                    : AppColors.textPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              )
+                            : AppTypography.cardTitle.copyWith(
+                                color: _expanded
+                                    ? AppColors.textPrimary
+                                    : AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14.5,
+                              ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0.0,
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: _expanded
+                            ? AppColors.accentPrimary
+                            : (isRetro
+                                ? AppColors.textPrimary
+                                : AppColors.textPlaceholder),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Expandable body ─────────────────────────────────────────────
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 250),
+                curve: Curves.easeInOutCubic,
+                alignment: Alignment.topCenter,
+                child: _expanded
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Divider(
+                              height: 1,
+                              color: isRetro
+                                  ? AppColors.cardBorder
+                                  : AppColors.subtleBorder,
+                              thickness: isRetro ? 1.5 : 1.0,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.body,
+                              style: isRetro
+                                  ? RetroTypography.bodyText.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                      height: 1.5,
+                                    )
+                                  : AppTypography.bodyText.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.55,
+                                    ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );
