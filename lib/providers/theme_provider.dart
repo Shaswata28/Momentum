@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../theme/app_colors.dart';
 import '../services/widget_service.dart';
+import '../services/focus_blocker_service.dart';
 
 enum AppThemeMode {
   system,
@@ -26,6 +27,11 @@ class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
   ThemeModeNotifier() : super(_loadInitialMode()) {
     _syncAppColors(state);
     WidgetService.syncTheme(state.name);
+    FocusBlockerService().syncTheme(
+      themeMode: state.name,
+      isRetro: AppColors.isRetro,
+      isDark: AppColors.isDark,
+    );
   }
 
   static AppThemeMode _loadInitialMode() {
@@ -46,10 +52,10 @@ class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
         case 'system':
           return AppThemeMode.system;
         default:
-          return AppThemeMode.dark;
+          return AppThemeMode.retroLight;
       }
     } catch (_) {
-      return AppThemeMode.dark;
+      return AppThemeMode.retroLight;
     }
   }
 
@@ -61,6 +67,11 @@ class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
     _syncAppColors(mode);
     state = mode;
     WidgetService.syncTheme(mode.name);
+    FocusBlockerService().syncTheme(
+      themeMode: mode.name,
+      isRetro: mode.isRetro,
+      isDark: mode.isDark,
+    );
     try {
       final box = Hive.box(_boxName);
       final val = switch (mode) {
@@ -99,6 +110,11 @@ class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
         AppColors.isRetro = false;
         AppColors.isDark = isDark;
         WidgetService.syncTheme(state.name);
+        FocusBlockerService().syncTheme(
+          themeMode: state.name,
+          isRetro: false,
+          isDark: isDark,
+        );
       }
     }
   }

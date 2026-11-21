@@ -17,6 +17,7 @@ import 'widgets/fixed_bills_section.dart';
 import 'transaction_sheet.dart';
 import 'wallet_settings_sheet.dart';
 import '../../widgets/action_button.dart';
+import '../../widgets/staggered_card.dart';
 
 enum _WalletTab {
   transactions,
@@ -914,21 +915,9 @@ class _StaggeredCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 360 + (index * 60)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, _) {
-        return Opacity(
-          opacity: value.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, 18 * (1.0 - value)),
-            child: child,
-          ),
-        );
-      },
-    );
+    // Shared entrance: replays with the shell's tab-entrance controller on
+    // every main-tab switch, one-shot when mounted outside the shell.
+    return StaggeredCard(index: index, child: child);
   }
 }
 

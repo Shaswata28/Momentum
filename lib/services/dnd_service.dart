@@ -61,8 +61,13 @@ class DndService {
                   task.status != TaskStatus.inProgress) ||
               task.date.year != now.year ||
               task.date.month != now.month ||
-              task.date.day != now.day)
+              task.date.day != now.day) {
             continue;
+          }
+          if (task.status == TaskStatus.inProgress) {
+            shouldBeOn = true;
+            break;
+          }
           if (task.scheduledTime != null) {
             final start = DateTime(
               now.year,

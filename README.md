@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
-  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version 1.2.0" />
+  <img src="https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge" alt="Version 2.0.0" />
   &nbsp;
   <img src="https://img.shields.io/badge/Platform-Android-blue?style=for-the-badge&logo=android" alt="Android" />
   &nbsp;
@@ -31,31 +31,34 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="screenshots/Dashboard.png" width="19%" />
-  <img src="screenshots/Wallet.png" width="19%" />
-  <img src="screenshots/Wallet2.png" width="19%" />
-  <img src="screenshots/Routine Builder.png" width="19%" />
-  <img src="screenshots/Routine Builder2.png" width="19%" />
+  <img src="screenshots/Onboarding.png" width="30%" alt="Retro theme onboarding showing Momentum's main features" />
+  <img src="screenshots/Dashboard.png" width="30%" alt="Today dashboard with Focus Shield and scheduled tasks" />
+  <img src="screenshots/Routine%20Builder.png" width="30%" alt="Weekly Routine Builder with scheduled task blocks" />
+</p>
+
+<p align="center">
+  <img src="screenshots/Wallet.png" width="30%" alt="Wallet balance and recent transactions" />
+  <img src="screenshots/Wallet2.png" width="30%" alt="Wallet expense entry form" />
+  <img src="screenshots/Insight.png" width="30%" alt="Wallet Insights with spending by category and daily spending" />
 </p>
 
 ---
 
-## 🚀 What's New in v1.2.0
+## 🚀 What's New in v2.0.0
 
-- 🌓 **Full Light Theme Mode**: Things 3 & Apple-inspired minimalist light aesthetic with pure white cards (`#FFFFFF`), Apple System Grouped Gray background (`#F2F2F7`), crisp Slate typography, accessible Focus Blue accent (`#2563EB`), and a 3-way segmented toggle (**System**, **Dark**, **Light**) in Profile settings.
-- 🛡️ **Focus Shield (App Blocker)**: Automatically prevents distractions during active Do Not Disturb tasks. Features a calming Mindful Friction overlay screen and 3 emergency passes per day.
-- 🗓️ **Friday & Saturday Weekend Logic**: Workday schedule shifted to Sunday through Thursday, recognizing Friday and Saturday as weekends for academic and regional calendars.
-- 🧙‍♂️ **Step-by-Step Task Wizard**: Interactive routine creation with smart suggestions, duration presets, custom DND, and buffer time configuration.
-- 🎨 **UI & Typography Polish**: Overhauled spacing, card borders, and responsive layouts across Today, Wallet, Insights, Routine, and Profile screens.
+- **Retro theme** with pixel typography and light and dark palettes. Classic styling is also available in Profile.
+- **Wallet updates** with transaction editing, spending breakdowns, and month-by-month history.
+- **Routine and review updates** with a weekly planner, a guided task editor, and saved daily reviews.
+- **Focus Shield** with a themed Android overlay and emergency passes for interruptions.
 
 ---
 
 ## ✨ Features
 
 ### 🌓 Appearance & Themes
-- Seamless 3-way theme selection: **System**, **Dark**, and **Light**
-- Dynamic token adaptation: cards, elevated surfaces, borders, and typography instantly switch
-- Things 3 / Apple minimalist design language with 6% subtle borders and high-contrast semantic indicators
+- **Retro Light** is the default. Choose **Classic** or **Retro** styling with light and dark appearances
+- Themes apply across screens and the Android home-screen widget
+- Bundled fonts work offline
 
 ### 🗓️ Today (Dashboard)
 - Personalized greeting with time-aware salutation
@@ -78,17 +81,17 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 - Log income (tuition / freelance / other) and expenses (fixed / variable / borrowed / lent)
 - Monthly budget progress bar with over-budget warning
 - Semester savings goal tracker
-- Full transaction history for the current month
+- Browse monthly transaction history and edit existing entries
 
 ### 📊 Insights
 - Weekly health score ring with animated arc and letter grade (A–F)
 - Energy bar chart (Sun–Sat) from end-of-day logs
 - 35-day consistency heatmap with score-based color intensity
-- Income vs. Spend bar chart
+- Spending by category and daily spending charts
 - Budget discipline indicator and spending pace metrics
 
 ### 🌙 End-of-Day Log
-- Triggered via the **Close Day** button after 9 PM
+- Open **Review Day** to reflect on tasks, energy, and spending
 - Logs energy level, motivation, budget adherence, and free-text notes
 - Calculates a health score from task completion weighted by type
 - Displays a read-only summary card if today is already logged
@@ -110,14 +113,14 @@ Momentum helps you structure your day through scheduled task blocks, track your 
 
 ## 📥 Download
 
-> **The app is not yet on the Play Store.** You can download the latest APK directly from GitHub Releases.
+Download a published APK from GitHub Releases.
 
 1. Go to the [**Releases**](../../releases) page.
-2. Download the latest `Momentum.apk` (v1.2.0).
+2. Download `Momentum.apk` from the release you want to install.
 3. On your Android device, allow installation from unknown sources if prompted (**Settings → Apps → Special app access → Install unknown apps**).
 4. Open the downloaded APK and install.
 
-Requires **Android 5.0 (API 21)** or higher.
+The current build requires **Android 7.0 (API 24)** or higher.
 
 ---
 
@@ -135,7 +138,7 @@ Everything below is for contributors and developers who want to build or modify 
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (stable channel, 3.x)
 - Android Studio or VS Code with the Flutter & Dart extensions
-- Android device or emulator (API 21+)
+- Android device or emulator (API 24+)
 
 ### Getting Started
 

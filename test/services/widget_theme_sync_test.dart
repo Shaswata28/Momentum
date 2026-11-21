@@ -59,6 +59,17 @@ void main() {
       .map((call) => (call.arguments as Map)['data'] as String)
       .toList();
 
+  test('defaults to Retro Light and syncs it to the widget', () async {
+    final notifier = ThemeModeNotifier();
+    addTearDown(notifier.dispose);
+    await pumpEventQueue();
+
+    expect(notifier.state, AppThemeMode.retroLight);
+    expect(AppColors.isRetro, isTrue);
+    expect(AppColors.isDark, isFalse);
+    expect(savedModes(), ['retroLight']);
+  });
+
   test('restores the saved app theme to the widget on startup', () async {
     await Hive.box('appSettings').put('themeMode', 'retro_dark');
     final notifier = ThemeModeNotifier();
@@ -106,6 +117,7 @@ void main() {
   test(
     'rapid changes wait for earlier writes and leave the latest theme saved',
     () async {
+      await Hive.box('appSettings').put('themeMode', 'system');
       saveGate = Completer<void>();
       final notifier = ThemeModeNotifier();
       addTearDown(notifier.dispose);
@@ -138,6 +150,7 @@ void main() {
   test(
     'system brightness updates preserve system mode for native resolution',
     () async {
+      await Hive.box('appSettings').put('themeMode', 'system');
       final notifier = ThemeModeNotifier();
       addTearDown(notifier.dispose);
       notifier.updateSystemBrightness(Brightness.dark);

@@ -34,13 +34,13 @@ class TagChip extends StatelessWidget {
         borderColor = isRetro ? AppColors.cardBorder : AppColors.subtleBorder;
         break;
       case TagType.dnd:
-        textColor = AppColors.textPrimary;
+        textColor = AppColors.accentPrimary;
         bgColor = isRetro
-            ? AppColors.accentPrimary.withValues(alpha: 0.18)
+            ? AppColors.cardBackground
             : AppColors.accentPrimary.withValues(alpha: 0.08);
         borderColor = isRetro
-            ? AppColors.cardBorder
-            : AppColors.accentPrimary.withValues(alpha: 0.16);
+            ? AppColors.accentPrimary
+            : AppColors.accentPrimary.withValues(alpha: 0.20);
         break;
       case TagType.missed:
         textColor = AppColors.textPrimary;
@@ -65,8 +65,8 @@ class TagChip extends StatelessWidget {
         children: [
           if (type == TagType.dnd) ...[
             Icon(
-              Icons.shield_outlined,
-              size: 10.5,
+              Icons.shield_rounded,
+              size: 11,
               color: AppColors.accentPrimary,
             ),
             const SizedBox(width: 3.5),

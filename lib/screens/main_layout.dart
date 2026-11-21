@@ -14,6 +14,7 @@ import 'insights/insights_screen.dart';
 import '../services/month_rollover_service.dart';
 import '../services/notification_service.dart';
 import '../providers/dashboard_providers.dart';
+import '../widgets/staggered_card.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({super.key});
@@ -152,11 +153,97 @@ class _MainLayoutState extends ConsumerState<MainLayout>
 
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      body: IndexedStack(index: _currentIndex, children: screens),
+      body: _TabTransition(index: _currentIndex, screens: screens),
       bottomNavigationBar: _MomentumNavBar(
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: (i) {
+          if (i == _currentIndex) return;
+          setState(() => _currentIndex = i);
+        },
         showEodBadge: showEodBadge,
+      ),
+    );
+  }
+}
+
+// ─── Tab-switch entrance: whole-screen fade + rise with cascading cards ───────
+
+/// Keeps the three main screens mounted in an [IndexedStack] so tab state
+/// survives switches (scroll position, selected month, live task states), and
+/// replays a shared entrance animation on every switch so the staggered card
+/// entrances behave like the Insights view switcher.
+class _TabTransition extends StatefulWidget {
+  final int index;
+  final List<Widget> screens;
+
+  const _TabTransition({required this.index, required this.screens});
+
+  @override
+  State<_TabTransition> createState() => _TabTransitionState();
+}
+
+class _TabTransitionState extends State<_TabTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+  );
+  late final CurvedAnimation _fade =
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final Animation<Offset> _rise = Tween<Offset>(
+    begin: const Offset(0, 0.03),
+    end: Offset.zero,
+  ).animate(_fade);
+
+  bool _animationsDisabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _animationsDisabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled && _controller.isAnimating) {
+      _controller
+        ..stop()
+        ..value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_TabTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index != oldWidget.index) {
+      // IndexedStack keeps screens mounted, so without this replay the
+      // staggered entrances would only ever play once at app start.
+      if (_animationsDisabled) {
+        _controller.value = 1.0;
+      } else {
+        _controller.forward(from: 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TabEntranceAnimation(
+      animation: _controller,
+      child: FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _rise,
+          child: IndexedStack(index: widget.index, children: widget.screens),
+        ),
       ),
     );
   }

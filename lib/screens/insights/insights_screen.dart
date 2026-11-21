@@ -18,6 +18,7 @@ import '../../widgets/health_score_ring.dart';
 import '../../widgets/daily_spending_chart.dart';
 import '../log/eod_log_screen.dart';
 import '../log/review_history_screen.dart';
+import '../../widgets/staggered_card.dart';
 
 class InsightsScreen extends ConsumerStatefulWidget {
   const InsightsScreen({super.key});
@@ -96,21 +97,22 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
             .toList();
 
         double weeklyScore = 0.0;
+        String grade = '—';
         if (weeklyLogs.isNotEmpty) {
           weeklyScore =
               weeklyLogs.map((e) => e.healthScore).reduce((a, b) => a + b) /
               weeklyLogs.length;
-        }
 
-        String grade = 'F';
-        if (weeklyScore >= 90) {
-          grade = 'A';
-        } else if (weeklyScore >= 80) {
-          grade = 'B';
-        } else if (weeklyScore >= 70) {
-          grade = 'C';
-        } else if (weeklyScore >= 60) {
-          grade = 'D';
+          grade = 'F';
+          if (weeklyScore >= 90) {
+            grade = 'A';
+          } else if (weeklyScore >= 80) {
+            grade = 'B';
+          } else if (weeklyScore >= 70) {
+            grade = 'C';
+          } else if (weeklyScore >= 60) {
+            grade = 'D';
+          }
         }
 
         final currentStreak = _calculateCurrentStreak(logs);
@@ -248,21 +250,9 @@ class _StaggeredCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 360 + (index * 60)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, _) {
-        return Opacity(
-          opacity: value.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1.0 - value)),
-            child: child,
-          ),
-        );
-      },
-    );
+    // Shared entrance: replays with the shell's tab-entrance controller on
+    // every main-tab switch, one-shot when mounted outside the shell.
+    return StaggeredCard(index: index, child: child);
   }
 }
 

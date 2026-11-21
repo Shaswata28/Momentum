@@ -487,22 +487,6 @@ class _TaskCardState extends State<TaskCard> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (widget.task.enableDND) ...[
-                                  const SizedBox(width: 6),
-                                  Icon(
-                                    Icons.do_not_disturb_on_rounded,
-                                    size: 13,
-                                    color: AppColors.successDone,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'DND',
-                                    style: AppTypography.tagChip.copyWith(
-                                      fontSize: 11,
-                                      color: AppColors.successDone,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                             const SizedBox(height: 14),

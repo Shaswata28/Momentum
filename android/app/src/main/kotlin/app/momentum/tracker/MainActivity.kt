@@ -75,16 +75,40 @@ class MainActivity : FlutterActivity() {
                         prefs.edit().putStringSet(FocusBlockerService.KEY_BLOCKED_PACKAGES, packages.toSet()).apply()
                         result.success(true)
                     }
+                    "setShieldEnabled" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: true
+                        val editor = prefs.edit().putBoolean(FocusBlockerService.KEY_IS_SHIELD_ENABLED, enabled)
+                        if (!enabled) {
+                            editor.putBoolean(FocusBlockerService.KEY_IS_DND_ACTIVE, false)
+                        }
+                        editor.apply()
+                        result.success(true)
+                    }
+                    "setTheme" -> {
+                        val themeMode = call.argument<String>("themeMode") ?: "dark"
+                        val isRetro = call.argument<Boolean>("isRetro") ?: false
+                        val isDark = call.argument<Boolean>("isDark") ?: true
+                        prefs.edit()
+                            .putString(FocusBlockerService.KEY_THEME_MODE, themeMode)
+                            .putBoolean(FocusBlockerService.KEY_IS_RETRO, isRetro)
+                            .putBoolean(FocusBlockerService.KEY_IS_DARK, isDark)
+                            .apply()
+                        result.success(true)
+                    }
                     "setFocusState" -> {
                         val isActive = call.argument<Boolean>("isActive") ?: false
                         val taskName = call.argument<String>("taskName") ?: "Focus Task"
                         val endTimeMs = call.argument<Number>("endTimeMs")?.toLong() ?: 0L
+                        val isRetro = call.argument<Boolean>("isRetro")
+                        val isDark = call.argument<Boolean>("isDark")
 
-                        prefs.edit()
+                        val editor = prefs.edit()
                             .putBoolean(FocusBlockerService.KEY_IS_DND_ACTIVE, isActive)
                             .putString(FocusBlockerService.KEY_ACTIVE_TASK_NAME, taskName)
                             .putLong(FocusBlockerService.KEY_ACTIVE_TASK_END_TIME, endTimeMs)
-                            .apply()
+                        if (isRetro != null) editor.putBoolean(FocusBlockerService.KEY_IS_RETRO, isRetro)
+                        if (isDark != null) editor.putBoolean(FocusBlockerService.KEY_IS_DARK, isDark)
+                        editor.apply()
                         result.success(true)
                     }
                     "useEmergencyPass" -> {
@@ -139,10 +163,10 @@ class MainActivity : FlutterActivity() {
                 .putString(FocusBlockerService.KEY_EMERGENCY_PASS_DATE, todayStr)
                 .putInt(FocusBlockerService.KEY_EMERGENCY_PASSES_USED, 0)
                 .apply()
-            return 2
+            return 3
         }
         val used = prefs.getInt(FocusBlockerService.KEY_EMERGENCY_PASSES_USED, 0)
-        val remaining = 2 - used
+        val remaining = 3 - used
         return if (remaining < 0) 0 else remaining
     }
 

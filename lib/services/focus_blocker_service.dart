@@ -6,6 +6,7 @@ import '../models/blocked_app_info.dart';
 import '../models/daily_task_instance.dart';
 import '../models/enums.dart';
 import '../screens/focus/mindful_friction_screen.dart';
+import '../theme/app_colors.dart';
 
 class FocusBlockerService {
   static final FocusBlockerService _instance = FocusBlockerService._internal();
@@ -37,8 +38,13 @@ class FocusBlockerService {
       }
     });
 
-    // Sync saved blocked apps to native SharedPreferences on startup
+    // Sync saved blocked apps and shield state on startup
     await _syncBlockedAppsToNative();
+    try {
+      await _channel.invokeMethod('setShieldEnabled', {
+        'enabled': isShieldEnabled(),
+      });
+    } catch (_) {}
 
     // Check if cold-started by a friction intent
     try {
@@ -95,6 +101,9 @@ class FocusBlockerService {
 
   Future<void> setShieldEnabled(bool enabled) async {
     await _box.put(_keyShieldEnabled, enabled);
+    try {
+      await _channel.invokeMethod('setShieldEnabled', {'enabled': enabled});
+    } catch (_) {}
     if (!enabled) {
       await syncFocusState(isActive: false);
     }
@@ -203,7 +212,21 @@ class FocusBlockerService {
     }
   }
 
-  // --- Focus Synchronization ---
+  // --- Focus & Theme Synchronization ---
+
+  Future<void> syncTheme({
+    required String themeMode,
+    required bool isRetro,
+    required bool isDark,
+  }) async {
+    try {
+      await _channel.invokeMethod('setTheme', {
+        'themeMode': themeMode,
+        'isRetro': isRetro,
+        'isDark': isDark,
+      });
+    } catch (_) {}
+  }
 
   Future<void> syncFocusState({
     required bool isActive,
@@ -219,6 +242,8 @@ class FocusBlockerService {
         'isActive': isActive,
         'taskName': taskName ?? 'Focus Task',
         'endTimeMs': endTime?.millisecondsSinceEpoch ?? 0,
+        'isRetro': AppColors.isRetro,
+        'isDark': AppColors.isDark,
       });
     } catch (_) {}
   }
@@ -235,7 +260,8 @@ class FocusBlockerService {
     DateTime? activeEndTime;
 
     for (var task in tasks) {
-      if (!task.enableDND ||
+      if (task.isBufferBlock ||
+          !task.enableDND ||
           (task.status != TaskStatus.pending &&
               task.status != TaskStatus.inProgress) ||
           task.date.year != now.year ||
@@ -244,6 +270,31 @@ class FocusBlockerService {
         continue;
       }
 
+      // 1. If actively in-progress, focus shield should be active immediately
+      if (task.status == TaskStatus.inProgress) {
+        shouldBeOn = true;
+        activeTitle = task.title;
+        if (task.scheduledTime != null) {
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            task.scheduledTime!.hour,
+            task.scheduledTime!.minute,
+          );
+          final scheduledEnd = start.add(
+            Duration(minutes: task.durationMinutes),
+          );
+          activeEndTime = scheduledEnd.isAfter(now)
+              ? scheduledEnd
+              : now.add(Duration(minutes: task.durationMinutes));
+        } else {
+          activeEndTime = now.add(Duration(minutes: task.durationMinutes));
+        }
+        break;
+      }
+
+      // 2. Otherwise if pending, check if current clock falls within scheduled window
       if (task.scheduledTime != null) {
         final start = DateTime(
           now.year,
@@ -301,11 +352,11 @@ class FocusBlockerService {
     if (savedDate != todayStr) {
       _box.put(_keyPassDate, todayStr);
       _box.put(_keyPassesUsed, 0);
-      return 2;
+      return 3;
     }
 
     final used = _box.get(_keyPassesUsed, defaultValue: 0) as int;
-    final remaining = 2 - used;
+    final remaining = 3 - used;
     return remaining < 0 ? 0 : remaining;
   }
 

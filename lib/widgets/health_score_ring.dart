@@ -40,7 +40,9 @@ class HealthScoreRing extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      animatedScore.toStringAsFixed(1),
+                      grade == '-' || grade == '—' || (safeScore == 0 && grade == 'N/A')
+                          ? '—'
+                          : animatedScore.toStringAsFixed(1),
                       style: AppTypography.scoreStat.copyWith(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
@@ -77,6 +79,10 @@ class HealthScoreRing extends StatelessWidget {
         return AppColors.accentPrimary;
       case 'D':
         return AppColors.warningTag;
+      case '-':
+      case '—':
+      case 'N/A':
+        return AppColors.textPlaceholder;
       default:
         return AppColors.errorAlert;
     }
@@ -156,6 +162,7 @@ class _RingPainter extends CustomPainter {
   }
 
   static Color _ringColor(double score) {
+    if (score <= 0) return AppColors.elevatedSurface;
     if (score >= 90) return AppColors.successDone;
     if (score >= 70) return AppColors.accentPrimary;
     if (score >= 60) return AppColors.warningTag;
